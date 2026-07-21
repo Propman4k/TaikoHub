@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import * as Lucide from 'lucide-react'
 import { Plus, Pencil, Trash2, X, Grid2x2, LayoutGrid, ExternalLink,
-         Settings, Check, Eye, EyeOff, LogOut, Share2, Loader2, AppWindow } from 'lucide-react'
+         Settings, Check, Eye, EyeOff, LogOut, Share2, Loader2, AppWindow,
+         SlidersHorizontal, ArrowLeft, Download, MonitorSmartphone } from 'lucide-react'
 
 // ── Konstanten ────────────────────────────────────────────────────────────
 const TILE = 84
@@ -321,6 +322,7 @@ export default function App() {
   const [showHidden, setShowHidden] = useState(false)
   const [macPicker, setMacPicker] = useState(false)
   const [launcher, setLauncher] = useState(false) // lokaler Launcher erreichbar?
+  const [view, setView] = useState('board') // 'board' | 'settings'
   const boardRef = useRef(null)
 
   const reload = useCallback(async () => {
@@ -419,6 +421,7 @@ export default function App() {
   if (me === undefined)
     return <div className="min-h-screen flex items-center justify-center text-text-light"><Loader2 className="animate-spin" /></div>
   if (me === null) return <LoginPage />
+  if (view === 'settings') return <SettingsPage launcher={launcher} onBack={() => setView('board')} />
 
   return (
     <div className="min-h-screen">
@@ -471,6 +474,7 @@ export default function App() {
                   Ausgeblendet <span className="ml-auto text-text-light">{hiddenApps.length}</span>
                 </MenuItem>
               )}
+              <MenuItem icon={SlidersHorizontal} onClick={menuAction(() => setView('settings'))}>Einstellungen</MenuItem>
               <MenuItem icon={LogOut} onClick={menuAction(logout)}>Abmelden</MenuItem>
               <p className="px-3 pt-2 pb-1 text-[10px] text-text-light border-t border-border mt-1">
                 Build: {BUILD_TIME}
@@ -496,6 +500,68 @@ export default function App() {
       )}
 
       {macPicker && <MacAppPicker onPick={createFromMac} onClose={() => setMacPicker(false)} />}
+    </div>
+  )
+}
+
+// Eigenstaendige Einstellungsseite (erweiterbar um weitere Sektionen).
+function SettingsPage({ launcher, onBack }) {
+  return (
+    <div className="min-h-screen bg-surface-raised">
+      <header className="bg-surface border-b border-border sticky top-0 z-40">
+        <div className="max-w-[820px] mx-auto px-4 sm:px-6 h-16 flex items-center gap-3">
+          <button onClick={onBack}
+                  className="p-2 -ml-2 text-slate-500 hover:text-brand hover:bg-brand/5 rounded-md transition-colors"
+                  title="Zurueck">
+            <ArrowLeft size={20} />
+          </button>
+          <h1 className="text-2xl font-bold tracking-tight">Einstellungen</h1>
+        </div>
+      </header>
+
+      <div className="max-w-[820px] mx-auto px-4 sm:px-6 py-8 flex flex-col gap-6">
+        {/* Sektion: TaikoHub Opener */}
+        <section className="bg-surface rounded-[10px] shadow-card border border-border overflow-hidden">
+          <div className="px-6 py-4 border-b border-border flex items-center gap-3">
+            <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-brand/10 text-brand">
+              <MonitorSmartphone size={20} />
+            </div>
+            <div className="flex-1">
+              <h2 className="text-lg font-semibold leading-tight">TaikoHub Opener</h2>
+              <p className="text-sm text-text-muted">Oeffnet Tools als installierte App statt im Browser.</p>
+            </div>
+            {launcher
+              ? <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 ring-1 ring-emerald-200 rounded-full px-3 py-1">
+                  <Check size={13} /> Aktiv
+                </span>
+              : <span className="text-xs font-semibold text-slate-500 bg-slate-100 rounded-full px-3 py-1">Nicht installiert</span>}
+          </div>
+
+          <div className="px-6 py-5 flex flex-col gap-4">
+            <p className="text-sm text-text-muted">
+              Einmal installieren, dann oeffnen die Kacheln die als App installierten Tools direkt
+              (z.B. TaikoTasks als eigene App). Ohne den Opener oeffnen sie sich in einem Browser-Fenster.
+            </p>
+
+            <a href="/TaikoHub-Opener.zip" download
+               className="inline-flex items-center gap-2 self-start bg-brand text-white px-5 py-2.5 rounded-[6px]
+                          text-sm font-semibold hover:bg-brand-hover transition-colors">
+              <Download size={18} /> Opener herunterladen
+            </a>
+
+            <ol className="text-sm text-text-muted list-decimal list-inside space-y-1.5">
+              <li>Datei herunterladen und im Downloads-Ordner <span className="font-medium text-text">doppelklicken</span> (entpackt sich).</li>
+              <li>Auf <span className="font-medium text-text">install.command</span> rechtsklicken &rarr; <span className="font-medium text-text">Oeffnen</span> &rarr; im Dialog nochmal <span className="font-medium text-text">Oeffnen</span>.</li>
+              <li>Kurz warten bis <span className="font-mono text-xs">FERTIG!</span> erscheint &mdash; das war's, dauerhaft aktiv.</li>
+            </ol>
+
+            <p className="text-[12px] text-text-light">
+              Der Opener laeuft nur lokal auf deinem Mac und startet Tools ueber die installierte App.
+              Voraussetzung: die jeweilige App ist auf dem Mac installiert.
+            </p>
+          </div>
+        </section>
+      </div>
     </div>
   )
 }

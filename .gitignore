@@ -6,3 +6,10 @@ server/cache
 server/.env
 .env
 .DS_Store
+
+# Session-/Audit-Artefakte (Skill-Contract, nicht committen)
+audit-report.json
+CODE_HEALTH_REPORT.md
+implementation_plan.md
+walkthrough.md
+PROJECT_HANDOFF.md

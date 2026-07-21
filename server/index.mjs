@@ -55,18 +55,7 @@ app.get('/api/health', (req, res) => res.json({ ok: true }))
 app.use('/api/auth', rateLimit({ windowMs: 15 * 60 * 1000, limit: 60, standardHeaders: true, legacyHeaders: false }))
 app.use('/api/auth', authRoutes())
 
-// ── Validierung ───────────────────────────────────────────────────────────────
-const parseTool = (b) => {
-  const name = String(b?.name || '').trim()
-  let url = String(b?.url || '').trim()
-  const icon = String(b?.icon || '').trim()
-  const color = String(b?.color || '').trim()
-  if (!/^https?:\/\//i.test(url)) url = `https://${url}`
-  if (!name || !icon || !color) return null
-  try { new URL(url) } catch { return null }
-  const shareWith = Array.isArray(b?.shareWith) ? b.shareWith.map(Number).filter(Number.isInteger) : []
-  return { name, url, icon, color, shareWith }
-}
+const { parseTool } = await import('./validate.mjs')
 
 // ── API (alles hinter requireAuth) ───────────────────────────────────────────
 // Nur Admin-Flows (Katalog-Freigaben, Mitarbeiterverwaltung) brauchen die Userliste.

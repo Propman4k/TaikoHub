@@ -577,9 +577,9 @@ function SettingsPage({ me, onBack }) {
   const [section, setSection] = useState(NAV[0].id)
 
   return (
-    <div className="min-h-screen bg-surface-raised flex">
+    <div className="h-screen overflow-hidden bg-surface-raised flex border-t border-border">
       {/* Sidebar bündig am linken Rand, volle Hoehe */}
-      <nav className="w-56 flex-shrink-0 bg-surface border-r border-border min-h-screen flex flex-col">
+      <nav className="w-56 flex-shrink-0 bg-surface border-r border-border h-full flex flex-col">
         <div className="h-16 flex items-center gap-2 px-4 border-b border-border">
           <button onClick={onBack} title="Zurueck"
                   className="p-2 -ml-2 text-slate-500 hover:text-brand hover:bg-brand/5 rounded-md transition-colors">
@@ -599,11 +599,9 @@ function SettingsPage({ me, onBack }) {
       </nav>
 
       <main className="flex-1 min-w-0 p-6 lg:p-8 overflow-y-auto">
-        <div className="max-w-[760px]">
-          {section === 'apps' && <AppsAdmin meId={me.id} />}
-          {section === 'opener' && <OpenerSection />}
-          {section === 'staff' && <StaffAdmin meId={me.id} />}
-        </div>
+        {section === 'apps' && <AppsAdmin meId={me.id} />}
+        {section === 'opener' && <OpenerSection />}
+        {section === 'staff' && <StaffAdmin meId={me.id} />}
       </main>
     </div>
   )
@@ -704,12 +702,13 @@ function AppsAdmin({ meId }) {
           <Plus size={16} strokeWidth={2.5} /> Neu
         </button>
       </div>
-      <div className="bg-surface rounded-[10px] shadow-card border border-border p-2 flex flex-col gap-1">
+      <div className="flex flex-col gap-2">
         {tools === null && <div className="flex items-center justify-center py-8 text-text-light"><Loader2 className="animate-spin" /></div>}
-        {tools?.length === 0 && <p className="text-sm text-text-muted px-3 py-6 text-center">Noch keine Apps. Lege mit „Neu" die erste an.</p>}
+        {tools?.length === 0 && <p className="text-sm text-text-muted py-6 text-center">Noch keine Apps. Lege mit „Neu" die erste an.</p>}
         {tools?.map((t) => (
           <button key={t.toolId} onClick={() => setEditing(t)}
-                  className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-slate-50 text-left transition-colors">
+                  className="bg-surface rounded-[10px] shadow-card border border-border flex items-center gap-3 px-4 py-3
+                             hover:bg-slate-50 text-left transition-colors">
             <Glyph icon={t.icon} color={t.color} box={40} radius={9} glyph={20} />
             <span className="flex-1 min-w-0">
               <span className="block text-sm font-medium truncate">{t.name}</span>
@@ -745,15 +744,15 @@ function AppForm({ initial, users, onSave, onDelete, onCancel }) {
   const canSave = name.trim() && url.trim()
 
   return (
-    <div className="bg-surface rounded-[10px] shadow-card border border-border overflow-hidden">
-      <div className="px-5 py-4 border-b border-border flex items-center gap-3">
+    <div className="bg-surface rounded-[10px] shadow-card border border-border flex flex-col max-h-full overflow-hidden">
+      <div className="flex-none px-5 py-4 border-b border-border flex items-center gap-3">
         <button onClick={onCancel} className="p-1.5 -ml-1.5 text-slate-500 hover:text-brand hover:bg-brand/5 rounded-md">
           <ArrowLeft size={18} />
         </button>
         <h2 className="text-lg font-semibold">{initial ? 'App bearbeiten' : 'Neue App'}</h2>
       </div>
 
-      <div className="px-5 py-5 flex flex-col gap-5">
+      <div className="flex-1 min-h-0 overflow-y-auto px-5 py-5 flex flex-col gap-5">
         <div className="flex items-center gap-4">
           <div className="flex-shrink-0 shadow-card rounded-[18px]">
             <Glyph icon={icon} color={color} box={64} radius={18} glyph={30} />
@@ -782,7 +781,7 @@ function AppForm({ initial, users, onSave, onDelete, onCancel }) {
           </div>
           <input className="input-base mb-2" placeholder="Icon suchen (z.B. mail, chart, essen)..."
                  value={iconQuery} onChange={(e) => setIconQuery(e.target.value)} />
-          <div className="grid grid-cols-8 gap-1.5 max-h-40 overflow-y-auto">
+          <div className="grid grid-cols-8 gap-1.5">
             {shown.map((n) => (
               <button key={n} type="button" onClick={() => setIcon(n)} title={n}
                       className={`flex items-center justify-center aspect-square rounded-md transition-colors ${
@@ -813,7 +812,7 @@ function AppForm({ initial, users, onSave, onDelete, onCancel }) {
         )}
       </div>
 
-      <div className="px-5 py-4 border-t border-border flex items-center justify-between gap-2">
+      <div className="flex-none px-5 py-4 border-t border-border flex items-center justify-between gap-2">
         {initial
           ? <button onClick={() => onDelete(initial.toolId)}
                     className="px-2.5 py-1.5 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded-md flex items-center gap-1.5">

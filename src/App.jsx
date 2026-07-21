@@ -577,20 +577,17 @@ function SettingsPage({ me, onBack }) {
   const [section, setSection] = useState(NAV[0].id)
 
   return (
-    <div className="min-h-screen bg-surface-raised flex flex-col">
-      <header className="bg-surface border-b border-border sticky top-0 z-40">
-        <div className="max-w-[1000px] mx-auto px-4 sm:px-6 h-16 flex items-center gap-3">
-          <button onClick={onBack}
-                  className="p-2 -ml-2 text-slate-500 hover:text-brand hover:bg-brand/5 rounded-md transition-colors"
-                  title="Zurueck">
+    <div className="min-h-screen bg-surface-raised flex">
+      {/* Sidebar bündig am linken Rand, volle Hoehe */}
+      <nav className="w-56 flex-shrink-0 bg-surface border-r border-border min-h-screen flex flex-col">
+        <div className="h-16 flex items-center gap-2 px-4 border-b border-border">
+          <button onClick={onBack} title="Zurueck"
+                  className="p-2 -ml-2 text-slate-500 hover:text-brand hover:bg-brand/5 rounded-md transition-colors">
             <ArrowLeft size={20} />
           </button>
-          <h1 className="text-2xl font-bold tracking-tight">Einstellungen</h1>
+          <h1 className="text-lg font-bold tracking-tight">Einstellungen</h1>
         </div>
-      </header>
-
-      <div className="flex-1 w-full max-w-[1000px] mx-auto flex">
-        <nav className="w-44 flex-shrink-0 border-r border-border p-3 flex flex-col gap-1">
+        <div className="p-3 flex flex-col gap-1">
           {NAV.map((n) => (
             <button key={n.id} onClick={() => setSection(n.id)}
                     className={`flex items-center gap-2.5 px-3 py-2.5 rounded-md text-sm font-medium text-left transition-colors ${
@@ -598,13 +595,16 @@ function SettingsPage({ me, onBack }) {
               <n.icon size={17} /> {n.label}
             </button>
           ))}
-        </nav>
-        <main className="flex-1 min-w-0 p-6 overflow-y-auto">
+        </div>
+      </nav>
+
+      <main className="flex-1 min-w-0 p-6 lg:p-8 overflow-y-auto">
+        <div className="max-w-[760px]">
           {section === 'apps' && <AppsAdmin meId={me.id} />}
           {section === 'opener' && <OpenerSection />}
           {section === 'staff' && <StaffAdmin meId={me.id} />}
-        </main>
-      </div>
+        </div>
+      </main>
     </div>
   )
 }

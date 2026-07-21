@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import * as Lucide from 'lucide-react'
 import { Plus, Pencil, Trash2, X, Grid2x2, LayoutGrid, ExternalLink,
-         Settings, Check, Eye, EyeOff, LogOut, Share2, Loader2, AppWindow,
+         Settings, Check, Eye, EyeOff, LogOut, Share2, Loader2,
          SlidersHorizontal, ArrowLeft, Download, MonitorSmartphone } from 'lucide-react'
 
 // ── Konstanten ────────────────────────────────────────────────────────────
@@ -320,8 +320,6 @@ export default function App() {
   const [editor, setEditor] = useState(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [showHidden, setShowHidden] = useState(false)
-  const [macPicker, setMacPicker] = useState(false)
-  const [launcher, setLauncher] = useState(false) // lokaler Launcher erreichbar?
   const [view, setView] = useState('board') // 'board' | 'settings'
   const boardRef = useRef(null)
 
@@ -336,16 +334,6 @@ export default function App() {
     api.me().then((r) => r.ok ? r.json() : null).then(setMe).catch(() => setMe(null))
   }, [])
   useEffect(() => { if (me) reload() }, [me, reload])
-  // Lokalen Launcher proben (in Safari/https nicht erreichbar -> Mac-Features aus).
-  useEffect(() => {
-    if (!me) return
-    const ctrl = new AbortController()
-    const t = setTimeout(() => ctrl.abort(), 1500)
-    fetch('http://127.0.0.1:7890/', { signal: ctrl.signal })
-      .then((r) => setLauncher(r.ok)).catch(() => setLauncher(false))
-      .finally(() => clearTimeout(t))
-    return () => clearTimeout(t)
-  }, [me])
   useEffect(() => localStorage.setItem('taikohub.snap', snap ? '1' : '0'), [snap])
 
   const visible = apps.filter((a) => !a.hidden)
@@ -387,19 +375,6 @@ export default function App() {
   }
 
   const deleteApp = async () => { await api.deleteTool(editor.toolId); setEditor(null); reload() }
-
-  const nextCell = () => {
-    const n = visible.length
-    const cols = Math.max(1, Math.floor(((boardRef.current?.clientWidth || 800) - PAD) / CELL))
-    return { x: PAD + (n % cols) * CELL, y: PAD + Math.floor(n / cols) * CELL }
-  }
-
-  const createFromMac = async (macApp) => {
-    const { x, y } = nextCell()
-    await api.createTool({ name: macApp.name, url: macApp.url, icon: macApp.icon || 'AppWindow',
-      color: '#1e293b', macApp: macApp.name, x, y })
-    setMacPicker(false); reload()
-  }
 
   const arrange = () => {
     const cols = Math.max(1, Math.floor(((boardRef.current?.clientWidth || 800) - PAD) / CELL))
@@ -465,9 +440,6 @@ export default function App() {
               {me.isAdmin && (
                 <MenuItem icon={Plus} onClick={menuAction(() => setEditor({}))}>Neues Tool</MenuItem>
               )}
-              {me.isAdmin && launcher && (
-                <MenuItem icon={AppWindow} onClick={menuAction(() => setMacPicker(true))}>Aus Mac-App anlegen</MenuItem>
-              )}
               <MenuItem icon={Grid2x2} onClick={() => setSnap((s) => !s)}>
                 Am Raster ausrichten {snap && <Check size={15} className="ml-auto text-brand" />}
               </MenuItem>
@@ -501,8 +473,6 @@ export default function App() {
       {showHidden && (
         <HiddenList apps={hiddenApps} onShow={unhide} onClose={() => setShowHidden(false)} />
       )}
-
-      {macPicker && <MacAppPicker onPick={createFromMac} onClose={() => setMacPicker(false)} />}
     </div>
   )
 }
@@ -664,57 +634,6 @@ function AdminTools() {
                 onSave={save} onDelete={del} onClose={() => setEditor(null)} />
       )}
     </section>
-  )
-}
-
-// Picker fuer installierte macOS-Web-Apps (via lokalem Launcher /apps).
-function MacAppPicker({ onPick, onClose }) {
-  const [apps, setApps] = useState(undefined) // undefined=laedt, null=Fehler, []=leer
-  const [busy, setBusy] = useState('')
-
-  useEffect(() => {
-    fetch('http://127.0.0.1:7890/apps')
-      .then((r) => r.json()).then(setApps).catch(() => setApps(null))
-  }, [])
-
-  const pick = async (a) => { setBusy(a.name); await onPick(a) }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()}
-           className="bg-surface rounded-2xl shadow-elevated w-full max-w-md border border-border animate-modal-in overflow-hidden">
-        <div className="px-6 py-4 border-b border-border bg-slate-50 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Aus Mac-App anlegen</h2>
-          <button onClick={onClose} className="p-2 text-slate-400 hover:text-brand hover:bg-brand/5 rounded-md">
-            <X size={16} />
-          </button>
-        </div>
-        <div className="p-3 flex flex-col gap-1.5 max-h-[60vh] overflow-y-auto">
-          {apps === undefined && (
-            <div className="flex items-center justify-center py-10 text-text-light"><Loader2 className="animate-spin" /></div>
-          )}
-          {apps === null && (
-            <p className="text-sm text-text-muted px-3 py-6 text-center">
-              Launcher nicht erreichbar. Laeuft <code className="text-brand">install-launcher.sh</code> auf diesem Mac?
-            </p>
-          )}
-          {Array.isArray(apps) && apps.length === 0 && (
-            <p className="text-sm text-text-muted px-3 py-6 text-center">Keine installierten Web-Apps gefunden.</p>
-          )}
-          {Array.isArray(apps) && apps.map((a) => (
-            <button key={a.name} onClick={() => pick(a)} disabled={!!busy}
-                    className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-slate-50 text-left disabled:opacity-50">
-              <Glyph icon={a.icon || 'AppWindow'} color="#1e293b" box={40} radius={9} glyph={20} />
-              <span className="flex-1 min-w-0">
-                <span className="block text-sm font-medium truncate">{a.name}</span>
-                <span className="block text-[11px] text-text-light truncate">{a.url}</span>
-              </span>
-              {busy === a.name && <Loader2 size={16} className="animate-spin text-brand" />}
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
   )
 }
 

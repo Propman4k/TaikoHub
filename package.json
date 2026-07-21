@@ -9,7 +9,7 @@
     "dev:server": "npm --prefix server run dev",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node server/test-db.mjs && node launcher.mjs test"
+    "test": "node server/test-db.mjs"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.2.1",

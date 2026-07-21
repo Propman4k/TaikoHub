@@ -30,10 +30,9 @@ npm run dev                           # Client :3005, Server :3006
 
 Siehe [deploy/README.md](deploy/README.md).
 
-## Lokaler PWA-Launcher (optional, macOS)
+## Tools als installierte App oeffnen (optional, macOS)
 
-```bash
-zsh install-launcher.sh
-```
-
-Danach im Tool bei einer App die "macOS-App" (Bundle-Name aus `~/Applications`) setzen.
+In den **Einstellungen** den **TaikoHub Opener** herunterladen und installieren. Er
+registriert das `taikohub://`-Schema und oeffnet Tools als installierte macOS-App
+(funktioniert auch im Safari-PWA). Danach bei einer App die "macOS-App"
+(Bundle-Name aus `~/Applications`) setzen.

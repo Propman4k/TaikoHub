@@ -355,18 +355,19 @@ export default function App() {
     setApps((cur) => cur.map((a) => (a.toolId === toolId ? { ...a, x, y } : a)))
   const commitPos = (toolId, x, y) => api.placement(toolId, { x, y })
 
-  const openApp = async (app) => {
-    if (app.macApp) {
-      try {
-        const r = await fetch('http://127.0.0.1:7890/open', { method: 'POST',
-          headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ app: app.macApp, url: app.url }) })
-        if (r.ok) return
-      } catch { /* Launcher aus -> Fallback */ }
-    }
+  const openInWindow = (app) => {
     const w = Math.min(1400, screen.availWidth - 80), h = Math.min(900, screen.availHeight - 80)
     const left = screen.availLeft + (screen.availWidth - w) / 2, top = screen.availTop + (screen.availHeight - h) / 2
     window.open(app.url, `taikohub_${app.toolId}`,
       `popup=yes,noopener,noreferrer,width=${w},height=${h},left=${left},top=${top}`)
+  }
+
+  // Mit macApp: ueber das taikohub://-Schema die installierte App oeffnen. Das ist
+  // eine System-Weiterleitung (kein fetch) und funktioniert daher auch in Safari.
+  // Ist der Opener installiert, faengt macOS die URL ab und die Seite bleibt stehen.
+  const openApp = (app) => {
+    if (app.macApp) { window.location.href = `taikohub://open?name=${encodeURIComponent(app.macApp)}`; return }
+    openInWindow(app)
   }
 
   const saveEditor = async ({ toolId, canEdit, tool, placement }) => {
@@ -506,15 +507,23 @@ export default function App() {
 
 // Eigenstaendige Einstellungsseite (erweiterbar um weitere Sektionen).
 function SettingsPage({ onBack }) {
-  const [ok, setOk] = useState(null) // null=prueft, true=aktiv, false=nicht erreichbar
-  const check = useCallback(() => {
-    setOk(null)
-    const ctrl = new AbortController()
-    const t = setTimeout(() => ctrl.abort(), 1500)
-    fetch('http://127.0.0.1:7890/', { signal: ctrl.signal })
-      .then((r) => setOk(r.ok)).catch(() => setOk(false)).finally(() => clearTimeout(t))
+  const [test, setTest] = useState('idle') // idle | testing | ok | fail
+  // Schema-Test: Handler oeffnet kurz den Finder -> Fenster verliert Fokus = erkannt.
+  const runTest = useCallback(() => {
+    setTest('testing')
+    let seen = false
+    const cancel = () => { seen = true }
+    window.addEventListener('blur', cancel, { once: true })
+    document.addEventListener('visibilitychange', cancel, { once: true })
+    // Transientes Fenster (kein Wegnavigieren der Seite); macOS faengt das Schema ab.
+    const w = window.open('taikohub://open?name=Finder', '_blank')
+    setTimeout(() => {
+      try { w && w.close() } catch { /* egal */ }
+      window.removeEventListener('blur', cancel)
+      document.removeEventListener('visibilitychange', cancel)
+      setTest(seen ? 'ok' : 'fail')
+    }, 1500)
   }, [])
-  useEffect(() => { check() }, [check])
 
   return (
     <div className="min-h-screen bg-surface-raised">
@@ -540,15 +549,17 @@ function SettingsPage({ onBack }) {
               <h2 className="text-lg font-semibold leading-tight">TaikoHub Opener</h2>
               <p className="text-sm text-text-muted">Oeffnet Tools als installierte App statt im Browser.</p>
             </div>
-            {ok === null
+            {test === 'testing'
               ? <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 bg-slate-100 rounded-full px-3 py-1">
-                  <Loader2 size={13} className="animate-spin" /> Pruefe
+                  <Loader2 size={13} className="animate-spin" /> Teste
                 </span>
-              : ok
+              : test === 'ok'
                 ? <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 ring-1 ring-emerald-200 rounded-full px-3 py-1">
                     <Check size={13} /> Aktiv
                   </span>
-                : <span className="text-xs font-semibold text-slate-500 bg-slate-100 rounded-full px-3 py-1">Nicht installiert</span>}
+                : test === 'fail'
+                  ? <span className="text-xs font-semibold text-amber-700 bg-amber-50 ring-1 ring-amber-200 rounded-full px-3 py-1">Nicht erkannt</span>
+                  : <span className="text-xs font-semibold text-slate-500 bg-slate-100 rounded-full px-3 py-1">Opener</span>}
           </div>
 
           <div className="px-6 py-5 flex flex-col gap-4">
@@ -563,22 +574,22 @@ function SettingsPage({ onBack }) {
                             text-sm font-semibold hover:bg-brand-hover transition-colors">
                 <Download size={18} /> Opener herunterladen
               </a>
-              <button onClick={check}
+              <button onClick={runTest}
                       className="inline-flex items-center gap-2 px-4 py-2.5 rounded-[6px] text-sm font-semibold
                                  text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 transition-colors">
-                Erneut pruefen
+                Verbindung testen
               </button>
             </div>
 
             <ol className="text-sm text-text-muted list-decimal list-inside space-y-1.5">
-              <li>Datei herunterladen und im Downloads-Ordner <span className="font-medium text-text">doppelklicken</span> (entpackt sich).</li>
-              <li>Auf <span className="font-medium text-text">install.command</span> rechtsklicken &rarr; <span className="font-medium text-text">Oeffnen</span> &rarr; im Dialog nochmal <span className="font-medium text-text">Oeffnen</span>.</li>
-              <li>Kurz warten bis <span className="font-mono text-xs">FERTIG!</span> erscheint &mdash; das war's, dauerhaft aktiv.</li>
+              <li>Datei herunterladen und im Downloads-Ordner <span className="font-medium text-text">doppelklicken</span> (entpackt <span className="font-medium text-text">TaikoHub Opener</span>).</li>
+              <li>Auf <span className="font-medium text-text">TaikoHub Opener</span> rechtsklicken &rarr; <span className="font-medium text-text">Oeffnen</span> &rarr; im Dialog nochmal <span className="font-medium text-text">Oeffnen</span> (einmalige Bestaetigung).</li>
+              <li>Zurueck hier auf <span className="font-medium text-text">Verbindung testen</span> &mdash; wird's gruen, ist alles bereit.</li>
             </ol>
 
             <p className="text-[12px] text-text-light">
-              Der Opener laeuft nur lokal auf deinem Mac und startet Tools ueber die installierte App.
-              Voraussetzung: die jeweilige App ist auf dem Mac installiert.
+              Der Opener ist ein kleines Programm, das nur lokal die installierte App startet &mdash;
+              es laeuft im Hintergrund, kein Fenster. Voraussetzung: die jeweilige App ist auf dem Mac installiert.
             </p>
           </div>
         </section>

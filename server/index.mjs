@@ -21,8 +21,8 @@ for (const k of ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'ALLOWED_EMAILS']) 
 const { authRoutes, requireAuth, requireAdmin } = await import('./auth.mjs')
 const dbmod = await import('./db.mjs')
 const {
-  SESSION_DB_PATH, getBoard, listUsers, createTool, updateTool, deleteTool,
-  getToolOwner, canSeeTool, getShareUserIds, upsertPlacement,
+  SESSION_DB_PATH, getBoard, getAvailable, listAllTools, listUsers, createTool,
+  updateTool, deleteTool, getToolOwner, canSeeTool, getShareUserIds, upsertPlacement,
 } = dbmod
 
 const isProd = process.env.NODE_ENV === 'production'
@@ -65,11 +65,15 @@ const parseTool = (b) => {
 app.get('/api/users', requireAuth, (req, res) => res.json(listUsers()))
 
 app.get('/api/board', requireAuth, (req, res) => {
-  const items = getBoard(req.user.id).map((it) => ({
-    ...it, mine: !!it.mine, hidden: !!it.hidden,
-    sharedWith: it.mine ? getShareUserIds(it.toolId) : [],
-  }))
-  res.json(items)
+  res.json(getBoard(req.user.id).map((it) => ({ ...it, mine: !!it.mine })))
+})
+
+// Verfuegbare, noch nicht hinzugefuegte Tools (fuer den "Tool hinzufuegen"-Picker).
+app.get('/api/available', requireAuth, (req, res) => res.json(getAvailable(req.user.id)))
+
+// Admin-Katalog: alle Tools + wem sie freigegeben sind.
+app.get('/api/tools', requireAuth, requireAdmin, (req, res) => {
+  res.json(listAllTools().map((t) => ({ ...t, sharedWith: getShareUserIds(t.toolId) })))
 })
 
 // Tool-Verwaltung nur fuer Admins (zentraler Katalog).

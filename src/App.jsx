@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import * as Lucide from 'lucide-react'
 import { Plus, Pencil, Trash2, X, Grid2x2, LayoutGrid, ExternalLink,
-         Settings, Check, Eye, EyeOff, LogOut, Share2, Loader2,
+         Settings, Check, EyeOff, LogOut, Share2, Loader2,
          SlidersHorizontal, ArrowLeft, Download, MonitorSmartphone } from 'lucide-react'
 
 // ── Konstanten ────────────────────────────────────────────────────────────
@@ -22,6 +22,35 @@ const ICONS = Object.keys(Lucide)
     && typeof Lucide[k] === 'object')
   .sort()
 const ICON_CAP = 180
+
+// Sinnvolle Standard-Auswahl (leeres Suchfeld) statt 180 A-Icons.
+const CURATED = [
+  'AppWindow', 'Globe', 'Link', 'Rocket', 'Star', 'Heart', 'Home', 'Folder',
+  'FileText', 'Mail', 'MessageSquare', 'Calendar', 'Clock', 'Users', 'User',
+  'Settings', 'Wrench', 'Terminal', 'Code', 'Database', 'Server', 'Cloud',
+  'BarChart3', 'PieChart', 'Activity', 'CreditCard', 'Receipt', 'ShoppingCart',
+  'Package', 'Truck', 'Map', 'Camera', 'Image', 'Music', 'Video', 'Mic',
+  'Book', 'Bell', 'Search', 'Tag', 'Flag', 'Shield', 'Lock', 'Key', 'Gauge',
+  'Layers', 'Kanban', 'ClipboardList', 'CheckSquare', 'Utensils', 'Coffee',
+].filter((n) => Lucide[n])
+
+// Synonyme: Suchbegriff -> zusaetzliche Namens-Fragmente (lucide-Namen sind engl. & woertlich).
+const SYNONYMS = {
+  essen: 'utensil salad pizza soup sandwich beef egg cake cookie coffee apple croissant',
+  food: 'utensil salad pizza soup sandwich beef egg cake cookie coffee apple croissant',
+  meal: 'utensil salad pizza soup sandwich', restaurant: 'utensil chef',
+  drink: 'coffee cup wine beer martini', getraenk: 'coffee cup wine beer',
+  geld: 'dollar euro coins banknote wallet credit receipt landmark',
+  money: 'dollar euro coins banknote wallet credit receipt',
+  chat: 'message messages', nachricht: 'message mail', email: 'mail atsign',
+  termin: 'calendar clock', datei: 'file folder', dokument: 'file',
+  statistik: 'chart activity trending', diagramm: 'chart pie',
+  person: 'user users contact', team: 'users',
+  einstellung: 'settings sliders wrench', werkzeug: 'wrench hammer',
+  auto: 'car truck', reise: 'plane map luggage', musik: 'music headphones',
+  foto: 'camera image', sicherheit: 'shield lock key', suche: 'search',
+  einkauf: 'shopping cart store', kalender: 'calendar', uhr: 'clock timer',
+}
 
 const BUILD_TIME = typeof __BUILD_TIME__ !== 'undefined' ? __BUILD_TIME__ : 'dev'
 
@@ -51,6 +80,8 @@ function Glyph({ icon, color, box, radius, glyph }) {
 const api = {
   me: () => fetch('/api/auth/me', { credentials: 'include' }),
   board: () => fetch('/api/board', { credentials: 'include' }).then((r) => r.json()),
+  available: () => fetch('/api/available', { credentials: 'include' }).then((r) => r.json()),
+  allTools: () => fetch('/api/tools', { credentials: 'include' }).then((r) => r.json()),
   users: () => fetch('/api/users', { credentials: 'include' }).then((r) => r.json()),
   createTool: (d) => fetch('/api/tools', { method: 'POST', credentials: 'include',
     headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(d) }),
@@ -109,15 +140,9 @@ function AppTile({ app, snap, boardRef, onMoveLocal, onCommit, onOpen, onEdit })
                 className="absolute -top-2 -right-2 hidden group-hover:flex items-center justify-center
                            w-6 h-6 rounded-full bg-white text-slate-600 shadow-elevated
                            border border-border hover:text-brand transition-colors"
-                title={app.mine ? 'Bearbeiten' : 'Optionen'}>
-          {app.mine ? <Pencil size={12} /> : <Settings size={12} />}
+                title="Optionen">
+          <Settings size={12} />
         </button>
-        {!app.mine && (
-          <span className="absolute -bottom-1 -left-1 flex items-center justify-center w-5 h-5 rounded-full
-                           bg-white text-brand shadow-card border border-border" title={`Geteilt von ${app.ownerName}`}>
-            <Share2 size={10} />
-          </span>
-        )}
       </div>
       <span className="text-[12px] font-medium text-text max-w-full truncate px-0.5" title={app.name}>
         {app.name}
@@ -127,39 +152,42 @@ function AppTile({ app, snap, boardRef, onMoveLocal, onCommit, onOpen, onEdit })
 }
 
 // ── Editor-Modal ────────────────────────────────────────────────────────────
-function Editor({ initial, users, onSave, onDelete, onClose }) {
-  const canEdit = !initial || initial.mine // neu oder eigenes -> Inhalt editierbar
+// allowContent=true  -> Admin-Katalog: Name/URL/Icon/Farbe + "Verfuegbar fuer".
+// allowContent=false -> Board-Optionen (jeder): macOS-App + "Vom Board entfernen".
+function Editor({ initial, users, allowContent, onSave, onDelete, onClose }) {
   const [name, setName] = useState(initial?.name || '')
   const [url, setUrl] = useState(initial?.url || '')
   const [color, setColor] = useState(initial?.color || COLORS[0])
   const [icon, setIcon] = useState(initial?.icon || 'AppWindow')
   const [macApp, setMacApp] = useState(initial?.macApp || '')
-  const [hidden, setHidden] = useState(initial?.hidden || false)
   const [shareWith, setShareWith] = useState(initial?.sharedWith || [])
   const [iconQuery, setIconQuery] = useState('')
 
   const q = iconQuery.trim().toLowerCase()
-  const matches = q ? ICONS.filter((n) => n.toLowerCase().includes(q)) : ICONS
+  const syn = (SYNONYMS[q] || '').split(' ').filter(Boolean)
+  const matches = q
+    ? ICONS.filter((n) => { const l = n.toLowerCase(); return l.includes(q) || syn.some((f) => l.includes(f)) })
+    : CURATED
   const shown = matches.slice(0, ICON_CAP)
   const toggleShare = (id) => setShareWith((s) => s.includes(id) ? s.filter((x) => x !== id) : [...s, id])
 
-  const submit = (e) => {
+  const submitContent = (e) => {
     e.preventDefault()
-    if (canEdit && (!name.trim() || !url.trim())) return
-    onSave({ toolId: initial?.toolId, canEdit,
-      tool: { name: name.trim(), url: url.trim(), color, icon, shareWith },
-      placement: { macApp: macApp.trim(), hidden } })
+    if (!name.trim() || !url.trim()) return
+    onSave({ toolId: initial?.toolId, tool: { name: name.trim(), url: url.trim(), color, icon, shareWith } })
   }
+  const saveOptions = (hidden) =>
+    onSave({ toolId: initial?.toolId, placement: { macApp: macApp.trim(), hidden } })
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
          onClick={onClose}>
-      <form onClick={(e) => e.stopPropagation()} onSubmit={submit}
+      <form onClick={(e) => e.stopPropagation()} onSubmit={(e) => { e.preventDefault(); allowContent ? submitContent(e) : saveOptions(false) }}
             className="relative bg-surface rounded-2xl shadow-elevated w-full max-w-md flex flex-col
                        animate-modal-in border border-border overflow-hidden">
         <div className="flex-none px-6 py-4 border-b border-border bg-slate-50 flex items-center justify-between">
           <h2 className="text-lg font-semibold">
-            {!initial ? 'Neues Tool' : initial.mine ? 'Tool bearbeiten' : 'Optionen'}
+            {allowContent ? (initial ? 'Tool bearbeiten' : 'Neues Tool') : 'Optionen'}
           </h2>
           <button type="button" onClick={onClose}
                   className="p-2 text-slate-400 hover:text-brand hover:bg-brand/5 rounded-md transition-colors">
@@ -173,7 +201,7 @@ function Editor({ initial, users, onSave, onDelete, onClose }) {
               <Glyph icon={icon} color={color} box={64} radius={18} glyph={30} />
             </div>
             <div className="flex-1 flex flex-col gap-2">
-              {canEdit ? (
+              {allowContent ? (
                 <>
                   <input className="input-base" placeholder="Name" value={name}
                          onChange={(e) => setName(e.target.value)} autoFocus />
@@ -184,23 +212,24 @@ function Editor({ initial, users, onSave, onDelete, onClose }) {
                 <>
                   <p className="text-sm font-semibold text-text">{name}</p>
                   <p className="text-xs text-text-muted truncate">{url}</p>
-                  <p className="text-[11px] text-text-light">Geteilt von {initial.ownerName}</p>
                 </>
               )}
             </div>
           </div>
 
-          {/* macOS-App (pro Person) */}
-          <div>
-            <p className="text-[11px] font-bold text-text-muted tracking-wide uppercase mb-2">
-              macOS-App <span className="normal-case font-medium text-text-light">(optional)</span>
-            </p>
-            <input className="input-base" placeholder="z.B. TaikoTasks — oeffnet installierte PWA statt Browser"
-                   value={macApp} onChange={(e) => setMacApp(e.target.value)} />
-          </div>
+          {/* Board-Optionen: macOS-App (pro Person) */}
+          {!allowContent && (
+            <div>
+              <p className="text-[11px] font-bold text-text-muted tracking-wide uppercase mb-2">
+                macOS-App <span className="normal-case font-medium text-text-light">(optional)</span>
+              </p>
+              <input className="input-base" placeholder="z.B. TaikoTasks — oeffnet installierte App statt Browser"
+                     value={macApp} onChange={(e) => setMacApp(e.target.value)} />
+            </div>
+          )}
 
-          {/* Nur eigene: Farbe, Icon, Teilen */}
-          {canEdit && (
+          {/* Admin-Katalog: Farbe, Icon, Verfuegbarkeit */}
+          {allowContent && (
             <>
               <div>
                 <p className="text-[11px] font-bold text-text-muted tracking-wide uppercase mb-2">Farbe</p>
@@ -217,9 +246,9 @@ function Editor({ initial, users, onSave, onDelete, onClose }) {
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-[11px] font-bold text-text-muted tracking-wide uppercase">Icon</p>
-                  <span className="text-[11px] text-text-light">{matches.length} verfuegbar</span>
+                  <span className="text-[11px] text-text-light">{q ? `${matches.length} Treffer` : 'Auswahl'}</span>
                 </div>
-                <input className="input-base mb-2" placeholder="Icon suchen (z.B. mail, chart, cloud)..."
+                <input className="input-base mb-2" placeholder="Icon suchen (z.B. mail, chart, essen)..."
                        value={iconQuery} onChange={(e) => setIconQuery(e.target.value)} />
                 <div className="grid grid-cols-8 gap-1.5 max-h-40 overflow-y-auto">
                   {shown.map((n) => (
@@ -230,14 +259,20 @@ function Editor({ initial, users, onSave, onDelete, onClose }) {
                     </button>
                   ))}
                 </div>
-                {matches.length > ICON_CAP && (
+                {q && matches.length > ICON_CAP && (
                   <p className="text-[11px] text-text-light mt-2">{matches.length - ICON_CAP} weitere — Suche eingrenzen.</p>
+                )}
+                {q && matches.length === 0 && (
+                  <p className="text-[11px] text-text-light mt-2">Nichts gefunden — versuch's englisch (mail, chart, cart).</p>
                 )}
               </div>
 
               {users.length > 0 && (
                 <div>
-                  <p className="text-[11px] font-bold text-text-muted tracking-wide uppercase mb-2">Teilen mit</p>
+                  <p className="text-[11px] font-bold text-text-muted tracking-wide uppercase mb-2">
+                    Verfuegbar fuer
+                  </p>
+                  <p className="text-[11px] text-text-light mb-2">Wer dieses Tool selbst hinzufuegen darf.</p>
                   <div className="flex flex-col gap-1.5">
                     {users.map((u) => (
                       <label key={u.id} className="flex items-center gap-2.5 px-3 py-2 rounded-md border border-border
@@ -253,19 +288,18 @@ function Editor({ initial, users, onSave, onDelete, onClose }) {
             </>
           )}
 
-          {/* Nur geteilte: Ausblenden-Toggle */}
-          {!canEdit && (
-            <button type="button" onClick={() => setHidden((h) => !h)}
+          {/* Board-Optionen: entfernen */}
+          {!allowContent && initial && (
+            <button type="button" onClick={() => saveOptions(true)}
                     className="flex items-center gap-2.5 px-3 py-2.5 rounded-md border border-border
-                               hover:bg-slate-50 text-sm text-slate-700 transition-colors">
-              {hidden ? <Eye size={16} /> : <EyeOff size={16} />}
-              {hidden ? 'Wieder einblenden' : 'Ausblenden'}
+                               hover:bg-red-50 hover:border-red-200 hover:text-red-600 text-sm text-slate-700 transition-colors">
+              <EyeOff size={16} /> Vom Board entfernen
             </button>
           )}
         </div>
 
         <div className="flex-none px-6 py-4 border-t border-border flex items-center justify-between gap-2">
-          {initial?.mine ? (
+          {allowContent && initial ? (
             <button type="button" onClick={onDelete}
                     className="px-2.5 py-1.5 text-xs font-medium text-white bg-red-600 hover:bg-red-700
                                rounded-md flex items-center gap-1.5">
@@ -278,7 +312,7 @@ function Editor({ initial, users, onSave, onDelete, onClose }) {
                                rounded-[6px] hover:bg-slate-50 hover:text-slate-900 transition-colors">
               Abbrechen
             </button>
-            <button type="submit" disabled={canEdit && (!name.trim() || !url.trim())}
+            <button type="submit" disabled={allowContent && (!name.trim() || !url.trim())}
                     className="px-5 py-2.5 text-sm font-semibold text-white bg-brand hover:bg-brand-hover
                                disabled:bg-brand/50 disabled:cursor-not-allowed rounded-[6px] transition-colors">
               Speichern
@@ -317,9 +351,9 @@ export default function App() {
   const [apps, setApps] = useState([])
   const [users, setUsers] = useState([])
   const [snap, setSnap] = useState(() => localStorage.getItem('taikohub.snap') === '1')
-  const [editor, setEditor] = useState(null)
+  const [editor, setEditor] = useState(null) // Board-Optionen einer Kachel
   const [menuOpen, setMenuOpen] = useState(false)
-  const [showHidden, setShowHidden] = useState(false)
+  const [addPicker, setAddPicker] = useState(false)
   const [view, setView] = useState('board') // 'board' | 'settings'
   const boardRef = useRef(null)
 
@@ -336,8 +370,7 @@ export default function App() {
   useEffect(() => { if (me) reload() }, [me, reload])
   useEffect(() => localStorage.setItem('taikohub.snap', snap ? '1' : '0'), [snap])
 
-  const visible = apps.filter((a) => !a.hidden)
-  const hiddenApps = apps.filter((a) => a.hidden)
+  const visible = apps // Board liefert nur hinzugefuegte (hidden=0) Tools
 
   const moveLocal = (toolId, x, y) =>
     setApps((cur) => cur.map((a) => (a.toolId === toolId ? { ...a, x, y } : a)))
@@ -358,23 +391,25 @@ export default function App() {
     openInWindow(app)
   }
 
-  const saveEditor = async ({ toolId, canEdit, tool, placement }) => {
-    if (!toolId) {
-      const n = visible.length
-      const cols = Math.max(1, Math.floor(((boardRef.current?.clientWidth || 800) - PAD) / CELL))
-      const x = PAD + (n % cols) * CELL, y = PAD + Math.floor(n / cols) * CELL
-      await api.createTool({ ...tool, macApp: placement.macApp, x, y })
-    } else if (canEdit) {
-      await api.updateTool(toolId, tool)
-      await api.placement(toolId, { macApp: placement.macApp })
-    } else {
-      await api.placement(toolId, { macApp: placement.macApp, hidden: placement.hidden })
-    }
+  // Board-Optionen einer Kachel speichern (macApp / vom Board entfernen).
+  const saveEditor = async ({ toolId, placement }) => {
+    await api.placement(toolId, { macApp: placement.macApp, hidden: placement.hidden })
     setEditor(null)
     reload()
   }
 
-  const deleteApp = async () => { await api.deleteTool(editor.toolId); setEditor(null); reload() }
+  // Ausgewaehlte verfuegbare Tools aufs Board holen (naechste freie Rasterzellen).
+  const addTools = async (ids) => {
+    const cols = Math.max(1, Math.floor(((boardRef.current?.clientWidth || 800) - PAD) / CELL))
+    let n = visible.length
+    for (const id of ids) {
+      const x = PAD + (n % cols) * CELL, y = PAD + Math.floor(n / cols) * CELL
+      await api.placement(id, { hidden: false, x, y })
+      n++
+    }
+    setAddPicker(false)
+    reload()
+  }
 
   const arrange = () => {
     const cols = Math.max(1, Math.floor(((boardRef.current?.clientWidth || 800) - PAD) / CELL))
@@ -383,12 +418,6 @@ export default function App() {
       const x = PAD + (i % cols) * CELL, y = PAD + Math.floor(i / cols) * CELL
       moveLocal(a.toolId, x, y); api.placement(a.toolId, { x, y })
     })
-  }
-
-  const unhide = (toolId) => {
-    moveLocal(toolId, PAD, PAD)
-    setApps((cur) => cur.map((a) => (a.toolId === toolId ? { ...a, hidden: false } : a)))
-    api.placement(toolId, { hidden: false })
   }
 
   const logout = () => fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).then(() => setMe(null))
@@ -413,7 +442,8 @@ export default function App() {
             </div>
             <p className="text-lg font-semibold text-slate-700">Noch keine Apps</p>
             <p className="text-sm text-text-muted max-w-sm">
-              Ueber das <span className="font-semibold text-brand">Zahnrad</span> unten rechts legst du dein erstes Tool an.
+              Ueber das <span className="font-semibold text-brand">Zahnrad</span> unten rechts &rarr;
+              <span className="font-semibold text-brand"> Tool hinzufuegen</span> holst du dir verfuegbare Tools aufs Board.
             </p>
           </div>
         )}
@@ -437,18 +467,11 @@ export default function App() {
                 {me.picture && <img src={me.picture} alt="" className="w-6 h-6 rounded-full" />}
                 <span className="text-xs text-text-muted truncate">{me.name}</span>
               </div>
-              {me.isAdmin && (
-                <MenuItem icon={Plus} onClick={menuAction(() => setEditor({}))}>Neues Tool</MenuItem>
-              )}
+              <MenuItem icon={Plus} onClick={menuAction(() => setAddPicker(true))}>Tool hinzufuegen</MenuItem>
               <MenuItem icon={Grid2x2} onClick={() => setSnap((s) => !s)}>
                 Am Raster ausrichten {snap && <Check size={15} className="ml-auto text-brand" />}
               </MenuItem>
               <MenuItem icon={LayoutGrid} onClick={menuAction(arrange)}>Anordnen</MenuItem>
-              {hiddenApps.length > 0 && (
-                <MenuItem icon={EyeOff} onClick={() => setShowHidden(true)}>
-                  Ausgeblendet <span className="ml-auto text-text-light">{hiddenApps.length}</span>
-                </MenuItem>
-              )}
               <MenuItem icon={SlidersHorizontal} onClick={menuAction(() => setView('settings'))}>Einstellungen</MenuItem>
               <MenuItem icon={LogOut} onClick={menuAction(logout)}>Abmelden</MenuItem>
               <p className="px-3 pt-2 pb-1 text-[10px] text-text-light border-t border-border mt-1">
@@ -466,13 +489,73 @@ export default function App() {
       </div>
 
       {editor && (
-        <Editor initial={editor.toolId ? editor : null} users={users}
-                onSave={saveEditor} onDelete={deleteApp} onClose={() => setEditor(null)} />
+        <Editor initial={editor} users={[]} allowContent={false}
+                onSave={saveEditor} onDelete={() => {}} onClose={() => setEditor(null)} />
       )}
 
-      {showHidden && (
-        <HiddenList apps={hiddenApps} onShow={unhide} onClose={() => setShowHidden(false)} />
+      {addPicker && (
+        <AddToolPicker onAdd={addTools} onClose={() => setAddPicker(false)} />
       )}
+    </div>
+  )
+}
+
+// "Tool hinzufuegen": zeigt verfuegbare, noch nicht hinzugefuegte Tools zur Auswahl.
+function AddToolPicker({ onAdd, onClose }) {
+  const [avail, setAvail] = useState(null)
+  const [sel, setSel] = useState([])
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => { api.available().then(setAvail).catch(() => setAvail([])) }, [])
+  const toggle = (id) => setSel((s) => s.includes(id) ? s.filter((x) => x !== id) : [...s, id])
+  const confirm = async () => { setBusy(true); await onAdd(sel) }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()}
+           className="bg-surface rounded-2xl shadow-elevated w-full max-w-md border border-border animate-modal-in overflow-hidden flex flex-col">
+        <div className="px-6 py-4 border-b border-border bg-slate-50 flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Tool hinzufuegen</h2>
+          <button onClick={onClose} className="p-2 text-slate-400 hover:text-brand hover:bg-brand/5 rounded-md">
+            <X size={16} />
+          </button>
+        </div>
+        <div className="p-3 flex flex-col gap-1.5 max-h-[55vh] overflow-y-auto">
+          {avail === null && (
+            <div className="flex items-center justify-center py-10 text-text-light"><Loader2 className="animate-spin" /></div>
+          )}
+          {avail?.length === 0 && (
+            <p className="text-sm text-text-muted px-3 py-8 text-center">
+              Keine weiteren Tools verfuegbar. Alles Freigegebene ist schon auf deinem Board.
+            </p>
+          )}
+          {avail?.map((t) => (
+            <label key={t.toolId}
+                   className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-slate-50 cursor-pointer">
+              <input type="checkbox" checked={sel.includes(t.toolId)} onChange={() => toggle(t.toolId)}
+                     className="h-[18px] w-[18px] rounded-[4px] accent-sky-500 cursor-pointer" />
+              <Glyph icon={t.icon} color={t.color} box={36} radius={8} glyph={18} />
+              <span className="flex-1 min-w-0">
+                <span className="block text-sm font-medium truncate">{t.name}</span>
+                <span className="block text-[11px] text-text-light truncate">{t.url}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+        {avail?.length > 0 && (
+          <div className="px-6 py-4 border-t border-border flex justify-end gap-2">
+            <button onClick={onClose}
+                    className="px-5 py-2.5 text-sm font-semibold text-slate-700 bg-white border border-slate-300
+                               rounded-[6px] hover:bg-slate-50 transition-colors">Abbrechen</button>
+            <button onClick={confirm} disabled={!sel.length || busy}
+                    className="px-5 py-2.5 text-sm font-semibold text-white bg-brand hover:bg-brand-hover
+                               disabled:bg-brand/50 disabled:cursor-not-allowed rounded-[6px] transition-colors flex items-center gap-2">
+              {busy && <Loader2 size={15} className="animate-spin" />}
+              {sel.length ? `${sel.length} hinzufuegen` : 'Hinzufuegen'}
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -579,15 +662,15 @@ function AdminTools() {
   const [editor, setEditor] = useState(null)
 
   const reload = useCallback(async () => {
-    const [board, us, meRes] = await Promise.all([api.board(), api.users(), api.me().then((r) => r.json())])
-    setTools(board)
+    const [all, us, meRes] = await Promise.all([api.allTools(), api.users(), api.me().then((r) => r.json())])
+    setTools(all)
     setUsers(us.filter((u) => u.id !== meRes.id))
   }, [])
   useEffect(() => { reload() }, [reload])
 
-  const save = async ({ toolId, tool, placement }) => {
-    if (!toolId) await api.createTool({ ...tool, macApp: placement.macApp })
-    else { await api.updateTool(toolId, tool); await api.placement(toolId, { macApp: placement.macApp }) }
+  const save = async ({ toolId, tool }) => {
+    if (!toolId) await api.createTool(tool)
+    else await api.updateTool(toolId, tool)
     setEditor(null); reload()
   }
   const del = async () => { await api.deleteTool(editor.toolId); setEditor(null); reload() }
@@ -630,7 +713,7 @@ function AdminTools() {
       </div>
 
       {editor && (
-        <Editor initial={editor.toolId ? editor : null} users={users}
+        <Editor initial={editor.toolId ? editor : null} users={users} allowContent
                 onSave={save} onDelete={del} onClose={() => setEditor(null)} />
       )}
     </section>
@@ -647,31 +730,3 @@ function MenuItem({ icon: I, onClick, children }) {
   )
 }
 
-function HiddenList({ apps, onShow, onClose }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()}
-           className="bg-surface rounded-2xl shadow-elevated w-full max-w-md border border-border animate-modal-in overflow-hidden">
-        <div className="px-6 py-4 border-b border-border bg-slate-50 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Ausgeblendete Apps</h2>
-          <button onClick={onClose} className="p-2 text-slate-400 hover:text-brand hover:bg-brand/5 rounded-md">
-            <X size={16} />
-          </button>
-        </div>
-        <div className="p-3 flex flex-col gap-1.5 max-h-[60vh] overflow-y-auto">
-          {apps.map((a) => (
-            <div key={a.toolId} className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-slate-50">
-              <Glyph icon={a.icon} color={a.color} box={36} radius={8} glyph={18} />
-              <span className="flex-1 text-sm truncate">{a.name}</span>
-              <button onClick={() => onShow(a.toolId)}
-                      className="px-3 py-1.5 text-xs font-semibold text-brand bg-brand/5 hover:bg-brand/10 rounded-md
-                                 flex items-center gap-1.5">
-                <Eye size={14} /> Einblenden
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  )
-}

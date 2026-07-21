@@ -63,20 +63,38 @@ export const listUsers = () =>
   db.prepare('SELECT id, email, name FROM users ORDER BY name').all()
 
 // ── Board (Tools + eigene Placement-Sicht) ────────────────────────────────────
+// Board = Tools, die der Nutzer sehen DARF (Owner/Share) UND aktiv hinzugefuegt hat
+// (placement existiert, hidden=0).
 export const getBoard = (userId) =>
   db.prepare(`
     SELECT t.id AS toolId, t.name, t.url, t.icon, t.color,
            t.owner_id AS ownerId, o.name AS ownerName,
            (t.owner_id = @uid) AS mine,
-           COALESCE(p.x, 24) AS x, COALESCE(p.y, 24) AS y,
-           COALESCE(p.hidden, 0) AS hidden, COALESCE(p.mac_app, '') AS macApp
+           p.x AS x, p.y AS y, p.hidden AS hidden, p.mac_app AS macApp
     FROM tools t
     JOIN users o ON o.id = t.owner_id
-    LEFT JOIN placements p ON p.tool_id = t.id AND p.user_id = @uid
+    JOIN placements p ON p.tool_id = t.id AND p.user_id = @uid AND p.hidden = 0
     WHERE t.owner_id = @uid
        OR t.id IN (SELECT tool_id FROM shares WHERE user_id = @uid)
     ORDER BY t.created_at
   `).all({ uid: userId })
+
+// Verfuegbar = darf der Nutzer sehen, aber noch NICHT auf dem Board (kein placement
+// oder hidden=1). Fuellt den "Tool hinzufuegen"-Picker.
+export const getAvailable = (userId) =>
+  db.prepare(`
+    SELECT t.id AS toolId, t.name, t.url, t.icon, t.color, o.name AS ownerName
+    FROM tools t
+    JOIN users o ON o.id = t.owner_id
+    LEFT JOIN placements p ON p.tool_id = t.id AND p.user_id = @uid
+    WHERE (t.owner_id = @uid OR t.id IN (SELECT tool_id FROM shares WHERE user_id = @uid))
+      AND (p.tool_id IS NULL OR p.hidden = 1)
+    ORDER BY t.name
+  `).all({ uid: userId })
+
+// Alle Tools (Admin-Katalog).
+export const listAllTools = () =>
+  db.prepare('SELECT id AS toolId, name, url, icon, color FROM tools ORDER BY name').all()
 
 export const getShareUserIds = (toolId) =>
   db.prepare('SELECT user_id FROM shares WHERE tool_id = ?').all(toolId).map((r) => r.user_id)
@@ -98,15 +116,12 @@ const insertPlacement = db.prepare(
   'INSERT OR IGNORE INTO placements (user_id, tool_id, x, y, mac_app) VALUES (@uid, @tid, @x, @y, @macApp)')
 const insertShare = db.prepare('INSERT OR IGNORE INTO shares (tool_id, user_id) VALUES (@tid, @uid)')
 
+// Anlegen = Tool + Verfuegbarkeit (shares). KEIN placement -> landet erst auf dem Board,
+// wenn ein Nutzer es selbst hinzufuegt.
 export const createTool = db.transaction((ownerId, data, shareWith) => {
   const id = randomUUID()
   insertTool.run({ id, ownerId, name: data.name, url: data.url, icon: data.icon, color: data.color })
-  insertPlacement.run({ uid: ownerId, tid: id, x: data.x ?? 24, y: data.y ?? 24, macApp: data.macApp || '' })
-  for (const uid of shareWith) {
-    if (uid === ownerId) continue
-    insertShare.run({ tid: id, uid })
-    insertPlacement.run({ uid, tid: id, x: 24, y: 24, macApp: '' })
-  }
+  for (const uid of shareWith) if (uid !== ownerId) insertShare.run({ tid: id, uid })
   return id
 })
 
@@ -123,10 +138,7 @@ export const updateTool = db.transaction((toolId, ownerId, data, shareWith) => {
     deleteShareStmt.run({ tid: toolId, uid })
     deletePlacementStmt.run({ tid: toolId, uid })
   }
-  for (const uid of target) if (!current.includes(uid)) { // neue Shares
-    insertShare.run({ tid: toolId, uid })
-    insertPlacement.run({ uid, tid: toolId, x: 24, y: 24, macApp: '' })
-  }
+  for (const uid of target) if (!current.includes(uid)) insertShare.run({ tid: toolId, uid })
 })
 
 export const deleteTool = db.prepare('DELETE FROM tools WHERE id = ?')

@@ -5,9 +5,12 @@ import { google } from 'googleapis'
 import crypto from 'node:crypto'
 import { upsertUser, getUserByEmail } from './db.mjs'
 
+// APP_URL = Origin, auf dem der BROWSER die App sieht (nicht der Server-Port!).
+// Dev: der Vite-Client auf 3005 (proxyt /api an den Server). Prod: setzt APP_URL
+// explizit auf die Tunnel-URL. Redirect-URI + Post-Login-Redirect haengen daran.
 const {
   GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET,
-  APP_URL = `http://localhost:${process.env.PORT || 3006}`,
+  APP_URL = 'http://localhost:3005',
   ALLOWED_EMAILS = '',
 } = process.env
 

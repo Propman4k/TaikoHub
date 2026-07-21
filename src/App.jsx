@@ -22,6 +22,8 @@ const ICONS = Object.keys(Lucide)
   .sort()
 const ICON_CAP = 180
 
+const BUILD_TIME = typeof __BUILD_TIME__ !== 'undefined' ? __BUILD_TIME__ : 'dev'
+
 const snapTo = (v) => Math.round((v - PAD) / CELL) * CELL + PAD
 
 function Icon({ name, ...props }) {
@@ -424,6 +426,9 @@ export default function App() {
                 </MenuItem>
               )}
               <MenuItem icon={LogOut} onClick={menuAction(logout)}>Abmelden</MenuItem>
+              <p className="px-3 pt-2 pb-1 text-[10px] text-text-light border-t border-border mt-1">
+                Build: {BUILD_TIME}
+              </p>
             </div>
           </>
         )}

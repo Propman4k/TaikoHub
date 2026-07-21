@@ -7,7 +7,7 @@ der NAS, kein docker-compose, kein Watchtower. Prod-Port **3007** (3006 = TaikoE
 
 ### 1. Google OAuth (Google Cloud Console → Credentials → OAuth-Client "Web")
 - **Authorized redirect URIs** (beide eintragen):
-  - `http://localhost:3006/api/auth/login/callback` (lokal, hast du schon)
+  - `http://localhost:3005/api/auth/login/callback` (lokal — Client-Port, nicht 3006!)
   - `https://<cloudflare-tunnel-url>/api/auth/login/callback` (prod — kommt aus Schritt 4)
 - Client ID + Secret notieren.
 

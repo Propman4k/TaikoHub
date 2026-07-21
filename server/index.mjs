@@ -67,7 +67,8 @@ const parseTool = (b) => {
 }
 
 // ── API (alles hinter requireAuth) ───────────────────────────────────────────
-app.get('/api/users', requireAuth, (req, res) => res.json(listUsers()))
+// Nur Admin-Flows (Katalog-Freigaben, Mitarbeiterverwaltung) brauchen die Userliste.
+app.get('/api/users', requireAuth, requireAdmin, (req, res) => res.json(listUsers()))
 
 // Mitarbeiterverwaltung (Admin)
 app.post('/api/users', requireAuth, requireAdmin, (req, res) => {

@@ -75,16 +75,23 @@ function Glyph({ icon, color, box, radius, glyph }) {
 }
 
 // ── API ─────────────────────────────────────────────────────────────────────
+// Zentrale JSON-Huelle: 401 = Session abgelaufen -> Reload laesst das Auth-Gate
+// greifen (LoginPage) statt Fehler-JSON in .map()-Crashes laufen zu lassen.
+const j = (r) => {
+  if (r.status === 401) { window.location.reload(); throw new Error('unauthenticated') }
+  if (!r.ok) throw new Error(`API ${r.status}`)
+  return r.json()
+}
 const api = {
   me: () => fetch('/api/auth/me', { credentials: 'include' }),
-  board: () => fetch('/api/board', { credentials: 'include' }).then((r) => r.json()),
-  available: () => fetch('/api/available', { credentials: 'include' }).then((r) => r.json()),
-  allTools: () => fetch('/api/tools', { credentials: 'include' }).then((r) => r.json()),
-  users: () => fetch('/api/users', { credentials: 'include' }).then((r) => r.json()),
+  board: () => fetch('/api/board', { credentials: 'include' }).then(j),
+  available: () => fetch('/api/available', { credentials: 'include' }).then(j),
+  allTools: () => fetch('/api/tools', { credentials: 'include' }).then(j),
+  users: () => fetch('/api/users', { credentials: 'include' }).then(j),
   createUser: (email) => fetch('/api/users', { method: 'POST', credentials: 'include',
     headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) }),
   deleteUser: (id) => fetch(`/api/users/${id}`, { method: 'DELETE', credentials: 'include' }),
-  userAccess: (id) => fetch(`/api/users/${id}/access`, { credentials: 'include' }).then((r) => r.json()),
+  userAccess: (id) => fetch(`/api/users/${id}/access`, { credentials: 'include' }).then(j),
   setUserAccess: (id, toolIds) => fetch(`/api/users/${id}/access`, { method: 'PUT', credentials: 'include',
     headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ toolIds }) }),
   createTool: (d) => fetch('/api/tools', { method: 'POST', credentials: 'include',
@@ -350,7 +357,6 @@ export default function App() {
   const [me, setMe] = useState(undefined) // undefined=laedt, null=aus, obj=an
   const [loaded, setLoaded] = useState(false) // Board schon einmal geladen?
   const [apps, setApps] = useState([])
-  const [users, setUsers] = useState([])
   const [editor, setEditor] = useState(null) // Board-Optionen einer Kachel
   const [menuOpen, setMenuOpen] = useState(false)
   const [addPicker, setAddPicker] = useState(false)
@@ -358,11 +364,9 @@ export default function App() {
   const boardRef = useRef(null)
 
   const reload = useCallback(async () => {
-    const [board, us] = await Promise.all([api.board(), api.users()])
-    setApps(board)
-    setUsers(us.filter((u) => u.id !== me?.id))
+    setApps(await api.board())
     setLoaded(true)
-  }, [me?.id])
+  }, [])
 
   useEffect(() => {
     api.me().then((r) => r.ok ? r.json() : null).then(setMe).catch(() => setMe(null))

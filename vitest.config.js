@@ -5,6 +5,7 @@ export default defineConfig({
   plugins: [react()],
   test: {
     environment: 'jsdom',
+    globals: true, // noetig fuer testing-library auto-cleanup zwischen Tests
     setupFiles: ['./src/test-setup.js'],
     coverage: {
       provider: 'v8',

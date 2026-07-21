@@ -42,7 +42,7 @@ export function StaffAdmin({ meId }) {
           Den Login selbst regelt die Allowlist (@taikonauten.com) — Entfernen loescht nur Freigaben und Board.</p>
       </div>
 
-      <div className="bg-surface rounded-[10px] shadow-card border border-border p-3 flex items-center gap-2 mb-4">
+      <div className="flex items-center gap-2 pb-5 border-b border-border max-w-xl">
         <input className="input-base flex-1" placeholder="email@taikonauten.com" value={email}
                onChange={(e) => setEmail(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} />
         <button onClick={add} disabled={busy || !email.trim()}
@@ -51,10 +51,10 @@ export function StaffAdmin({ meId }) {
         </button>
       </div>
 
-      <div className="bg-surface rounded-[10px] shadow-card border border-border p-2 flex flex-col gap-1">
+      <div className="divide-y divide-border">
         {users === null && <div className="flex items-center justify-center py-8 text-text-light"><Loader2 className="animate-spin" /></div>}
         {users?.map((u) => (
-          <div key={u.id} className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-slate-50">
+          <div key={u.id} className="flex items-center gap-3 px-1 py-3 hover:bg-slate-50">
             <div className="flex items-center justify-center w-9 h-9 rounded-full bg-slate-100 text-slate-500 flex-shrink-0">
               <Users size={16} />
             </div>
@@ -87,8 +87,8 @@ function StaffAccess({ user, tools, onBack }) {
   const save = async () => { await api.setUserAccess(user.id, sel); onBack() }
 
   return (
-    <div className="bg-surface rounded-[10px] shadow-card border border-border overflow-hidden">
-      <div className="px-5 py-4 border-b border-border flex items-center gap-3">
+    <div>
+      <div className="flex items-center gap-3 pb-4 border-b border-border">
         <button onClick={onBack} className="p-1.5 -ml-1.5 text-slate-500 hover:text-brand hover:bg-brand/5 rounded-md">
           <ArrowLeft size={18} />
         </button>
@@ -97,16 +97,16 @@ function StaffAccess({ user, tools, onBack }) {
           <p className="text-[11px] text-text-light">{user.email}</p>
         </div>
       </div>
-      <div className="px-5 py-4">
+      <div className="py-6 border-b border-border">
         <p className="text-[11px] font-bold text-text-muted tracking-wide uppercase mb-2">Freigegebene Apps</p>
         {sel === null
           ? <div className="flex items-center justify-center py-6 text-text-light"><Loader2 className="animate-spin" /></div>
           : tools.length === 0
             ? <p className="text-sm text-text-muted py-4">Noch keine Apps angelegt.</p>
             : (
-              <div className="flex flex-col gap-1.5">
+              <div className="flex flex-col max-w-xl">
                 {tools.map((t) => (
-                  <label key={t.toolId} className="flex items-center gap-3 px-3 py-2 rounded-md border border-border hover:bg-slate-50 cursor-pointer">
+                  <label key={t.toolId} className="flex items-center gap-3 px-2 py-2 rounded-md hover:bg-slate-50 cursor-pointer">
                     <input type="checkbox" checked={sel.includes(t.toolId)} onChange={() => toggle(t.toolId)}
                            className="h-[18px] w-[18px] rounded-[4px] accent-sky-500 cursor-pointer" />
                     <Glyph icon={t.icon} color={t.color} box={32} radius={7} glyph={16} />
@@ -116,7 +116,7 @@ function StaffAccess({ user, tools, onBack }) {
               </div>
             )}
       </div>
-      <div className="px-5 py-4 border-t border-border flex justify-end">
+      <div className="py-5 flex justify-end">
         <button onClick={save} disabled={sel === null}
                 className="px-5 py-2.5 text-sm font-semibold text-white bg-brand hover:bg-brand-hover disabled:bg-brand/50 rounded-[6px] transition-colors">
           Speichern

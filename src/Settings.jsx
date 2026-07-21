@@ -62,8 +62,8 @@ function OpenerSection() {
   }, [])
 
   return (
-    <section className="bg-surface rounded-[10px] shadow-card border border-border overflow-hidden">
-      <div className="px-6 py-4 border-b border-border flex items-center gap-3">
+    <section>
+      <div className="pb-4 border-b border-border flex items-center gap-3">
         <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-brand/10 text-brand">
           <MonitorSmartphone size={20} />
         </div>
@@ -79,8 +79,8 @@ function OpenerSection() {
               ? <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 bg-slate-100 rounded-full px-3 py-1"><Loader2 size={13} className="animate-spin" /> Teste</span>
               : null}
       </div>
-      <div className="px-6 py-5 flex flex-col gap-4">
-        <p className="text-sm text-text-muted">
+      <div className="py-6 flex flex-col gap-4">
+        <p className="text-sm text-text-muted max-w-2xl">
           Einmal installieren, dann oeffnen die Kacheln die als App installierten Tools direkt.
           Ohne den Opener oeffnen sie sich in einem Browser-Fenster.
         </p>

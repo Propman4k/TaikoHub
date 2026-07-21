@@ -15,15 +15,10 @@ export const ICONS = Object.keys(Lucide)
   .sort()
 export const ICON_CAP = 180
 
-// Sinnvolle Standard-Auswahl (leeres Suchfeld) statt 180 A-Icons.
+// Kompakte Standard-Auswahl (leeres Suchfeld) — alles Weitere nur ueber die Suche.
 export const CURATED = [
   'AppWindow', 'Globe', 'Link', 'Rocket', 'Star', 'Heart', 'Home', 'Folder',
-  'FileText', 'Mail', 'MessageSquare', 'Calendar', 'Clock', 'Users', 'User',
-  'Settings', 'Wrench', 'Terminal', 'Code', 'Database', 'Server', 'Cloud',
-  'BarChart3', 'PieChart', 'Activity', 'CreditCard', 'Receipt', 'ShoppingCart',
-  'Package', 'Truck', 'Map', 'Camera', 'Image', 'Music', 'Video', 'Mic',
-  'Book', 'Bell', 'Search', 'Tag', 'Flag', 'Shield', 'Lock', 'Key', 'Gauge',
-  'Layers', 'Kanban', 'ClipboardList', 'CheckSquare', 'Utensils', 'Coffee',
+  'Mail', 'Calendar', 'Users', 'Settings', 'Terminal', 'Database', 'BarChart3', 'Utensils',
 ].filter((n) => Lucide[n])
 
 // Synonyme: Suchbegriff -> zusaetzliche Namens-Fragmente (lucide-Namen sind engl. & woertlich).

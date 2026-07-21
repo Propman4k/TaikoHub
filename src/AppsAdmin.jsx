@@ -41,13 +41,12 @@ export function AppsAdmin({ meId }) {
           <Plus size={16} strokeWidth={2.5} /> Neu
         </button>
       </div>
-      <div className="flex flex-col gap-2">
+      <div className="border-t border-border divide-y divide-border">
         {tools === null && <div className="flex items-center justify-center py-8 text-text-light"><Loader2 className="animate-spin" /></div>}
         {tools?.length === 0 && <p className="text-sm text-text-muted py-6 text-center">Noch keine Apps. Lege mit „Neu" die erste an.</p>}
         {tools?.map((t) => (
           <button key={t.toolId} onClick={() => setEditing(t)}
-                  className="bg-surface rounded-[10px] shadow-card border border-border flex items-center gap-3 px-4 py-3
-                             hover:bg-slate-50 text-left transition-colors">
+                  className="w-full flex items-center gap-3 px-1 py-3 hover:bg-slate-50 text-left transition-colors">
             <Glyph icon={t.icon} color={t.color} box={40} radius={9} glyph={20} />
             <span className="flex-1 min-w-0">
               <span className="block text-sm font-medium truncate">{t.name}</span>
@@ -77,12 +76,12 @@ function IconPicker({ icon, onPick }) {
         <p className="text-[11px] font-bold text-text-muted tracking-wide uppercase">Icon</p>
         <span className="text-[11px] text-text-light">{q ? `${matches.length} Treffer` : 'Auswahl'}</span>
       </div>
-      <input className="input-base mb-2" placeholder="Icon suchen (z.B. mail, chart, essen)..."
+      <input className="input-base mb-3 max-w-md" placeholder="Icon suchen (z.B. mail, chart, essen)..."
              value={query} onChange={(e) => setQuery(e.target.value)} />
-      <div className="grid grid-cols-8 gap-1.5">
+      <div className="flex flex-wrap gap-1.5">
         {shown.map((n) => (
           <button key={n} type="button" onClick={() => onPick(n)} title={n}
-                  className={`flex items-center justify-center aspect-square rounded-md transition-colors ${
+                  className={`flex items-center justify-center w-10 h-10 rounded-md transition-colors ${
                     icon === n ? 'bg-brand text-white' : 'text-slate-500 hover:bg-slate-100'}`}>
             <Icon name={n} size={18} />
           </button>
@@ -102,9 +101,9 @@ function ShareList({ users, shareWith, onToggle }) {
     <div>
       <p className="text-[11px] font-bold text-text-muted tracking-wide uppercase mb-1">Verfuegbar fuer</p>
       <p className="text-[11px] text-text-light mb-2">Wer diese App selbst hinzufuegen darf.</p>
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col max-w-xl">
         {users.map((u) => (
-          <label key={u.id} className="flex items-center gap-2.5 px-3 py-2 rounded-md border border-border hover:bg-slate-50 cursor-pointer text-sm">
+          <label key={u.id} className="flex items-center gap-2.5 px-2 py-2 rounded-md hover:bg-slate-50 cursor-pointer text-sm">
             <input type="checkbox" checked={shareWith.includes(u.id)} onChange={() => onToggle(u.id)}
                    className="h-[18px] w-[18px] rounded-[4px] accent-sky-500 cursor-pointer" />
             {u.name} <span className="text-text-light text-xs">{u.email}</span>
@@ -128,42 +127,46 @@ export function AppForm({ initial, users, onSave, onDelete, onCancel }) {
   const canSave = name.trim() && url.trim()
 
   return (
-    <div className="bg-surface rounded-[10px] shadow-card border border-border flex flex-col max-h-full overflow-hidden">
-      <div className="flex-none px-5 py-4 border-b border-border flex items-center gap-3">
+    <div>
+      <div className="flex items-center gap-3 pb-4 border-b border-border">
         <button onClick={onCancel} className="p-1.5 -ml-1.5 text-slate-500 hover:text-brand hover:bg-brand/5 rounded-md">
           <ArrowLeft size={18} />
         </button>
         <h2 className="text-lg font-semibold">{initial ? 'App bearbeiten' : 'Neue App'}</h2>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto px-5 py-5 flex flex-col gap-5">
-        <div className="flex items-center gap-4">
-          <div className="flex-shrink-0 shadow-card rounded-[18px]">
-            <Glyph icon={icon} color={color} box={64} radius={18} glyph={30} />
-          </div>
-          <div className="flex-1 flex flex-col gap-2">
-            <input className="input-base" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
-            <input className="input-base" placeholder="https://..." value={url} onChange={(e) => setUrl(e.target.value)} />
-          </div>
+      <div className="py-6 border-b border-border flex items-center gap-4">
+        <div className="flex-shrink-0 shadow-card rounded-[18px]">
+          <Glyph icon={icon} color={color} box={64} radius={18} glyph={30} />
         </div>
-
-        <div>
-          <p className="text-[11px] font-bold text-text-muted tracking-wide uppercase mb-2">Farbe</p>
-          <div className="flex flex-wrap gap-2">
-            {COLORS.map((c) => (
-              <button key={c} type="button" onClick={() => setColor(c)}
-                      className={`w-7 h-7 rounded-full transition-transform hover:scale-110 ${color === c ? 'ring-2 ring-offset-2 ring-brand' : ''}`}
-                      style={{ backgroundColor: c }} />
-            ))}
-          </div>
+        <div className="flex-1 max-w-xl flex flex-col gap-2">
+          <input className="input-base" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+          <input className="input-base" placeholder="https://..." value={url} onChange={(e) => setUrl(e.target.value)} />
         </div>
-
-        <IconPicker icon={icon} onPick={setIcon} />
-
-        <ShareList users={users} shareWith={shareWith} onToggle={toggleShare} />
       </div>
 
-      <div className="flex-none px-5 py-4 border-t border-border flex items-center justify-between gap-2">
+      <div className="py-6 border-b border-border">
+        <p className="text-[11px] font-bold text-text-muted tracking-wide uppercase mb-2">Farbe</p>
+        <div className="flex flex-wrap gap-2">
+          {COLORS.map((c) => (
+            <button key={c} type="button" onClick={() => setColor(c)}
+                    className={`w-7 h-7 rounded-full transition-transform hover:scale-110 ${color === c ? 'ring-2 ring-offset-2 ring-brand' : ''}`}
+                    style={{ backgroundColor: c }} />
+          ))}
+        </div>
+      </div>
+
+      <div className="py-6 border-b border-border">
+        <IconPicker icon={icon} onPick={setIcon} />
+      </div>
+
+      {users.length > 0 && (
+        <div className="py-6 border-b border-border">
+          <ShareList users={users} shareWith={shareWith} onToggle={toggleShare} />
+        </div>
+      )}
+
+      <div className="py-5 flex items-center justify-between gap-2">
         {initial
           ? <button onClick={() => onDelete(initial.toolId)}
                     className="px-2.5 py-1.5 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded-md flex items-center gap-1.5">

@@ -159,44 +159,22 @@ function AppTile({ app, boardRef, onMoveLocal, onDrop, onOpen, onEdit }) {
   )
 }
 
-// ── Editor-Modal ────────────────────────────────────────────────────────────
-// allowContent=true  -> Admin-Katalog: Name/URL/Icon/Farbe + "Verfuegbar fuer".
-// allowContent=false -> Board-Optionen (jeder): macOS-App + "Vom Board entfernen".
-function Editor({ initial, users, allowContent, onSave, onDelete, onClose }) {
-  const [name, setName] = useState(initial?.name || '')
-  const [url, setUrl] = useState(initial?.url || '')
-  const [color, setColor] = useState(initial?.color || COLORS[0])
-  const [icon, setIcon] = useState(initial?.icon || 'AppWindow')
+// ── Board-Optionen-Modal ─────────────────────────────────────────────────────
+// Pro-Nutzer-Optionen einer Kachel: macOS-App fuer den Opener + vom Board entfernen.
+// (Katalog-Bearbeitung lebt in Settings -> AppForm.)
+function Editor({ initial, onSave, onClose }) {
   const [macApp, setMacApp] = useState(initial?.macApp || '')
-  const [shareWith, setShareWith] = useState(initial?.sharedWith || [])
-  const [iconQuery, setIconQuery] = useState('')
-
-  const q = iconQuery.trim().toLowerCase()
-  const syn = (SYNONYMS[q] || '').split(' ').filter(Boolean)
-  const matches = q
-    ? ICONS.filter((n) => { const l = n.toLowerCase(); return l.includes(q) || syn.some((f) => l.includes(f)) })
-    : CURATED
-  const shown = matches.slice(0, ICON_CAP)
-  const toggleShare = (id) => setShareWith((s) => s.includes(id) ? s.filter((x) => x !== id) : [...s, id])
-
-  const submitContent = (e) => {
-    e.preventDefault()
-    if (!name.trim() || !url.trim()) return
-    onSave({ toolId: initial?.toolId, tool: { name: name.trim(), url: url.trim(), color, icon, shareWith } })
-  }
-  const saveOptions = (hidden) =>
+  const save = (hidden) =>
     onSave({ toolId: initial?.toolId, placement: { macApp: macApp.trim(), hidden } })
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
          onClick={onClose}>
-      <form onClick={(e) => e.stopPropagation()} onSubmit={(e) => { e.preventDefault(); allowContent ? submitContent(e) : saveOptions(false) }}
+      <form onClick={(e) => e.stopPropagation()} onSubmit={(e) => { e.preventDefault(); save(false) }}
             className="relative bg-surface rounded-2xl shadow-elevated w-full max-w-md flex flex-col
                        animate-modal-in border border-border overflow-hidden">
         <div className="flex-none px-6 py-4 border-b border-border bg-slate-50 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">
-            {allowContent ? (initial ? 'Tool bearbeiten' : 'Neues Tool') : 'Optionen'}
-          </h2>
+          <h2 className="text-lg font-semibold">Optionen</h2>
           <button type="button" onClick={onClose}
                   className="p-2 text-slate-400 hover:text-brand hover:bg-brand/5 rounded-md transition-colors">
             <X size={16} />
@@ -206,126 +184,40 @@ function Editor({ initial, users, allowContent, onSave, onDelete, onClose }) {
         <div className="px-6 py-5 flex flex-col gap-5 max-h-[70vh] overflow-y-auto">
           <div className="flex items-center gap-4">
             <div className="flex-shrink-0 shadow-card rounded-[18px]">
-              <Glyph icon={icon} color={color} box={64} radius={18} glyph={30} />
+              <Glyph icon={initial?.icon} color={initial?.color} box={64} radius={18} glyph={30} />
             </div>
-            <div className="flex-1 flex flex-col gap-2">
-              {allowContent ? (
-                <>
-                  <input className="input-base" placeholder="Name" value={name}
-                         onChange={(e) => setName(e.target.value)} autoFocus />
-                  <input className="input-base" placeholder="https://..." value={url}
-                         onChange={(e) => setUrl(e.target.value)} />
-                </>
-              ) : (
-                <>
-                  <p className="text-sm font-semibold text-text">{name}</p>
-                  <p className="text-xs text-text-muted truncate">{url}</p>
-                </>
-              )}
+            <div className="flex-1 flex flex-col gap-2 min-w-0">
+              <p className="text-sm font-semibold text-text">{initial?.name}</p>
+              <p className="text-xs text-text-muted truncate">{initial?.url}</p>
             </div>
           </div>
 
-          {/* Board-Optionen: macOS-App (pro Person) */}
-          {!allowContent && (
-            <div>
-              <p className="text-[11px] font-bold text-text-muted tracking-wide uppercase mb-2">
-                macOS-App <span className="normal-case font-medium text-text-light">(optional)</span>
-              </p>
-              <input className="input-base" placeholder="z.B. TaikoTasks — oeffnet installierte App statt Browser"
-                     value={macApp} onChange={(e) => setMacApp(e.target.value)} />
-            </div>
-          )}
+          <div>
+            <p className="text-[11px] font-bold text-text-muted tracking-wide uppercase mb-2">
+              macOS-App <span className="normal-case font-medium text-text-light">(optional)</span>
+            </p>
+            <input className="input-base" placeholder="z.B. TaikoTasks — oeffnet installierte App statt Browser"
+                   value={macApp} onChange={(e) => setMacApp(e.target.value)} />
+          </div>
 
-          {/* Admin-Katalog: Farbe, Icon, Verfuegbarkeit */}
-          {allowContent && (
-            <>
-              <div>
-                <p className="text-[11px] font-bold text-text-muted tracking-wide uppercase mb-2">Farbe</p>
-                <div className="flex flex-wrap gap-2">
-                  {COLORS.map((c) => (
-                    <button key={c} type="button" onClick={() => setColor(c)}
-                            className={`w-7 h-7 rounded-full transition-transform hover:scale-110 ${
-                              color === c ? 'ring-2 ring-offset-2 ring-brand' : ''}`}
-                            style={{ backgroundColor: c }} />
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-[11px] font-bold text-text-muted tracking-wide uppercase">Icon</p>
-                  <span className="text-[11px] text-text-light">{q ? `${matches.length} Treffer` : 'Auswahl'}</span>
-                </div>
-                <input className="input-base mb-2" placeholder="Icon suchen (z.B. mail, chart, essen)..."
-                       value={iconQuery} onChange={(e) => setIconQuery(e.target.value)} />
-                <div className="grid grid-cols-8 gap-1.5 max-h-40 overflow-y-auto">
-                  {shown.map((n) => (
-                    <button key={n} type="button" onClick={() => setIcon(n)} title={n}
-                            className={`flex items-center justify-center aspect-square rounded-md transition-colors ${
-                              icon === n ? 'bg-brand text-white' : 'text-slate-500 hover:bg-slate-100'}`}>
-                      <Icon name={n} size={18} />
-                    </button>
-                  ))}
-                </div>
-                {q && matches.length > ICON_CAP && (
-                  <p className="text-[11px] text-text-light mt-2">{matches.length - ICON_CAP} weitere — Suche eingrenzen.</p>
-                )}
-                {q && matches.length === 0 && (
-                  <p className="text-[11px] text-text-light mt-2">Nichts gefunden — versuch's englisch (mail, chart, cart).</p>
-                )}
-              </div>
-
-              {users.length > 0 && (
-                <div>
-                  <p className="text-[11px] font-bold text-text-muted tracking-wide uppercase mb-2">
-                    Verfuegbar fuer
-                  </p>
-                  <p className="text-[11px] text-text-light mb-2">Wer dieses Tool selbst hinzufuegen darf.</p>
-                  <div className="flex flex-col gap-1.5">
-                    {users.map((u) => (
-                      <label key={u.id} className="flex items-center gap-2.5 px-3 py-2 rounded-md border border-border
-                                                    hover:bg-slate-50 cursor-pointer text-sm">
-                        <input type="checkbox" checked={shareWith.includes(u.id)} onChange={() => toggleShare(u.id)}
-                               className="h-[18px] w-[18px] rounded-[4px] accent-sky-500 cursor-pointer" />
-                        {u.name} <span className="text-text-light text-xs">{u.email}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-
-          {/* Board-Optionen: entfernen */}
-          {!allowContent && initial && (
-            <button type="button" onClick={() => saveOptions(true)}
-                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-md border border-border
-                               hover:bg-red-50 hover:border-red-200 hover:text-red-600 text-sm text-slate-700 transition-colors">
-              <EyeOff size={16} /> Vom Board entfernen
-            </button>
-          )}
+          <button type="button" onClick={() => save(true)}
+                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-md border border-border
+                             hover:bg-red-50 hover:border-red-200 hover:text-red-600 text-sm text-slate-700 transition-colors">
+            <EyeOff size={16} /> Vom Board entfernen
+          </button>
         </div>
 
-        <div className="flex-none px-6 py-4 border-t border-border flex items-center justify-between gap-2">
-          {allowContent && initial ? (
-            <button type="button" onClick={onDelete}
-                    className="px-2.5 py-1.5 text-xs font-medium text-white bg-red-600 hover:bg-red-700
-                               rounded-md flex items-center gap-1.5">
-              <Trash2 size={14} /> Loeschen
-            </button>
-          ) : <span />}
-          <div className="flex gap-2">
-            <button type="button" onClick={onClose}
-                    className="px-5 py-2.5 text-sm font-semibold text-slate-700 bg-white border border-slate-300
-                               rounded-[6px] hover:bg-slate-50 hover:text-slate-900 transition-colors">
-              Abbrechen
-            </button>
-            <button type="submit" disabled={allowContent && (!name.trim() || !url.trim())}
-                    className="px-5 py-2.5 text-sm font-semibold text-white bg-brand hover:bg-brand-hover
-                               disabled:bg-brand/50 disabled:cursor-not-allowed rounded-[6px] transition-colors">
-              Speichern
-            </button>
-          </div>
+        <div className="flex-none px-6 py-4 border-t border-border flex items-center justify-end gap-2">
+          <button type="button" onClick={onClose}
+                  className="px-5 py-2.5 text-sm font-semibold text-slate-700 bg-white border border-slate-300
+                             rounded-[6px] hover:bg-slate-50 hover:text-slate-900 transition-colors">
+            Abbrechen
+          </button>
+          <button type="submit"
+                  className="px-5 py-2.5 text-sm font-semibold text-white bg-brand hover:bg-brand-hover
+                             rounded-[6px] transition-colors">
+            Speichern
+          </button>
         </div>
       </form>
     </div>
@@ -500,8 +392,7 @@ export default function App() {
       </div>
 
       {editor && (
-        <Editor initial={editor} users={[]} allowContent={false}
-                onSave={saveEditor} onDelete={() => {}} onClose={() => setEditor(null)} />
+        <Editor initial={editor} onSave={saveEditor} onClose={() => setEditor(null)} />
       )}
 
       {addPicker && (

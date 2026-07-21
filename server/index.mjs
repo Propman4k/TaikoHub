@@ -62,8 +62,7 @@ const parseTool = (b) => {
   if (!name || !icon || !color) return null
   try { new URL(url) } catch { return null }
   const shareWith = Array.isArray(b?.shareWith) ? b.shareWith.map(Number).filter(Number.isInteger) : []
-  return { name, url, icon, color, macApp: String(b?.macApp || '').trim(), shareWith,
-           x: Number.isFinite(b?.x) ? b.x : undefined, y: Number.isFinite(b?.y) ? b.y : undefined }
+  return { name, url, icon, color, shareWith }
 }
 
 // ── API (alles hinter requireAuth) ───────────────────────────────────────────

@@ -23,7 +23,9 @@ export const isSafeUrl = (url) => {
 
 const openApp = (app, url) =>
   new Promise((resolve, reject) => {
-    const args = app ? ['-a', app, url] : [url]
+    // Mit App-Name: nur die PWA starten (sie kennt ihre eigene URL). Die URL
+    // mitzugeben oeffnet ein zweites, leeres Fenster. Ohne App: URL im Browser.
+    const args = app ? ['-a', app] : [url]
     execFile('open', args, (err) => (err ? reject(err) : resolve()))
   })
 

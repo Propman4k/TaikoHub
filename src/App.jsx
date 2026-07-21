@@ -421,7 +421,7 @@ export default function App() {
   if (me === undefined)
     return <div className="min-h-screen flex items-center justify-center text-text-light"><Loader2 className="animate-spin" /></div>
   if (me === null) return <LoginPage />
-  if (view === 'settings') return <SettingsPage launcher={launcher} onBack={() => setView('board')} />
+  if (view === 'settings') return <SettingsPage onBack={() => setView('board')} />
 
   return (
     <div className="min-h-screen">
@@ -505,7 +505,17 @@ export default function App() {
 }
 
 // Eigenstaendige Einstellungsseite (erweiterbar um weitere Sektionen).
-function SettingsPage({ launcher, onBack }) {
+function SettingsPage({ onBack }) {
+  const [ok, setOk] = useState(null) // null=prueft, true=aktiv, false=nicht erreichbar
+  const check = useCallback(() => {
+    setOk(null)
+    const ctrl = new AbortController()
+    const t = setTimeout(() => ctrl.abort(), 1500)
+    fetch('http://127.0.0.1:7890/', { signal: ctrl.signal })
+      .then((r) => setOk(r.ok)).catch(() => setOk(false)).finally(() => clearTimeout(t))
+  }, [])
+  useEffect(() => { check() }, [check])
+
   return (
     <div className="min-h-screen bg-surface-raised">
       <header className="bg-surface border-b border-border sticky top-0 z-40">
@@ -530,11 +540,15 @@ function SettingsPage({ launcher, onBack }) {
               <h2 className="text-lg font-semibold leading-tight">TaikoHub Opener</h2>
               <p className="text-sm text-text-muted">Oeffnet Tools als installierte App statt im Browser.</p>
             </div>
-            {launcher
-              ? <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 ring-1 ring-emerald-200 rounded-full px-3 py-1">
-                  <Check size={13} /> Aktiv
+            {ok === null
+              ? <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 bg-slate-100 rounded-full px-3 py-1">
+                  <Loader2 size={13} className="animate-spin" /> Pruefe
                 </span>
-              : <span className="text-xs font-semibold text-slate-500 bg-slate-100 rounded-full px-3 py-1">Nicht installiert</span>}
+              : ok
+                ? <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 ring-1 ring-emerald-200 rounded-full px-3 py-1">
+                    <Check size={13} /> Aktiv
+                  </span>
+                : <span className="text-xs font-semibold text-slate-500 bg-slate-100 rounded-full px-3 py-1">Nicht installiert</span>}
           </div>
 
           <div className="px-6 py-5 flex flex-col gap-4">
@@ -543,11 +557,18 @@ function SettingsPage({ launcher, onBack }) {
               (z.B. TaikoTasks als eigene App). Ohne den Opener oeffnen sie sich in einem Browser-Fenster.
             </p>
 
-            <a href="/TaikoHub-Opener.zip" download
-               className="inline-flex items-center gap-2 self-start bg-brand text-white px-5 py-2.5 rounded-[6px]
-                          text-sm font-semibold hover:bg-brand-hover transition-colors">
-              <Download size={18} /> Opener herunterladen
-            </a>
+            <div className="flex items-center gap-2">
+              <a href="/TaikoHub-Opener.zip" download
+                 className="inline-flex items-center gap-2 bg-brand text-white px-5 py-2.5 rounded-[6px]
+                            text-sm font-semibold hover:bg-brand-hover transition-colors">
+                <Download size={18} /> Opener herunterladen
+              </a>
+              <button onClick={check}
+                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-[6px] text-sm font-semibold
+                                 text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 transition-colors">
+                Erneut pruefen
+              </button>
+            </div>
 
             <ol className="text-sm text-text-muted list-decimal list-inside space-y-1.5">
               <li>Datei herunterladen und im Downloads-Ordner <span className="font-medium text-text">doppelklicken</span> (entpackt sich).</li>

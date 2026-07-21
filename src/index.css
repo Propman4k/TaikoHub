@@ -1,0 +1,234 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+/* Hide scrollbars but keep scroll functionality */
+.overflow-y-auto,
+.overflow-x-auto,
+.overflow-auto {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+.overflow-y-auto::-webkit-scrollbar,
+.overflow-x-auto::-webkit-scrollbar,
+.overflow-auto::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
+}
+
+@theme {
+  --font-sans: 'Inter', system-ui, sans-serif;
+
+  /* ── Brand / Primary Scale ── */
+  --color-primary-50: #f0f9ff;
+  --color-primary-100: #e0f2fe;
+  --color-primary-200: #bae6fd;
+  --color-primary-300: #7dd3fc;
+  --color-primary-400: #38bdf8;
+  --color-primary-500: #0ea5e9;
+  --color-primary-600: #0284c7;
+  --color-primary-700: #0369a1;
+
+  /* ── Semantic Colors ── */
+  --color-brand: #1100ff;
+  --color-brand-hover: #0e00cc;
+  --color-harvest: #FA5D00;
+  --color-harvest-hover: #e55500;
+  --color-surface: #ffffff;
+  --color-surface-raised: #F3F4F8;
+  --color-border: #e2e8f0;
+  --color-text: #1e293b;
+  --color-text-muted: #64748b;
+  --color-text-light: #94a3b8;
+
+
+  /* ── Status Colors ── */
+  --color-status-erstellt: #f1f5f9;
+  --color-status-erstellt-text: #334155;
+  --color-status-pruefung: #fff7ed;
+  --color-status-pruefung-text: #9a3412;
+  --color-status-versenden: #eff6ff;
+  --color-status-versenden-text: #1d4ed8;
+  --color-status-versandt: #faf5ff;
+  --color-status-versandt-text: #7e22ce;
+  --color-status-bezahlt: #ecfdf5;
+  --color-status-bezahlt-text: #15803d;
+
+  /* ── Layout ── */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-full: 9999px;
+
+  /* ── Shadows ── */
+  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.06);
+  --shadow-elevated: 0 10px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  /* Scrollbar IMMER sichtbar auf Page-Level - vermeidet Layout-Shift beim
+     Wechsel zwischen Pages/Filtern mit unterschiedlichen Content-Hoehen.
+     NUR auf html, NICHT auf body -- sonst wird body zum Scroll-Container
+     und sticky-Elemente (Sidebar) brechen. */
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, sans-serif;
+  background-color: var(--color-surface-raised);
+  color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* ── Animations ── */
+@keyframes toast-in {
+  from { transform: translateY(-10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.animate-toast-in { animation: toast-in 0.25s ease-out; }
+
+@keyframes slide-up {
+  from { transform: translateX(-50%) translateY(20px); opacity: 0; }
+  to { transform: translateX(-50%) translateY(0); opacity: 1; }
+}
+.animate-slide-up { animation: slide-up 0.25s ease-out both; }
+
+@keyframes modal-in {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+.animate-modal-in { animation: modal-in 0.2s ease-out; }
+
+/* ── Reusable Form Input Classes ── */
+.input-base {
+  @apply w-full px-3 py-2 bg-white border border-slate-200 rounded-[4px] text-sm text-brand
+         placeholder:text-slate-300
+         focus:outline-none focus:ring-2 focus:ring-brand/50 focus:border-brand transition-colors;
+}
+.input-finance {
+  @apply w-full px-3 py-2 pr-12 bg-emerald-50/50 border border-emerald-200 rounded-[4px] text-sm
+         focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500
+         transition-colors text-right font-mono text-emerald-700;
+}
+.input-contact {
+  @apply w-full px-3 py-1.5 bg-white border rounded-[4px] text-sm text-brand
+         placeholder:text-slate-300
+         focus:outline-none focus:ring-2 focus:ring-brand/50 focus:border-brand transition-colors;
+}
+.input-select {
+  @apply w-full px-3 py-2 pr-10 bg-white border border-slate-300 rounded-[4px] text-sm text-brand
+         focus:outline-none focus:ring-2 focus:ring-brand/50 focus:border-brand transition-colors;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+}
+
+/* Read-only field styling — uses same bg as PDF preview for visual consistency */
+.disabled-field {
+  background-color: #E8ECF2;
+  border: 1px solid #E8ECF2;
+  background-image: none !important;
+  -webkit-appearance: none;
+  appearance: none;
+  @apply text-slate-900 cursor-default;
+  pointer-events: none;
+  opacity: 1;
+}
+
+/* Center text in date inputs — hide calendar icon (moved to label) */
+input[type="date"].text-center {
+  text-align: center !important;
+}
+input[type="date"].text-center::-webkit-datetime-edit {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  padding: 0;
+}
+input[type="date"].text-center::-webkit-datetime-edit-fields-wrapper {
+  text-align: center;
+}
+input[type="date"].text-center::-webkit-calendar-picker-indicator {
+  display: none;
+}
+
+/* Hide number input spinners for centered text */
+input[type="number"].text-center::-webkit-inner-spin-button,
+input[type="number"].text-center::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"].text-center {
+  -moz-appearance: textfield;
+}
+
+/* Bridge the gap between card-style table rows to prevent hover flicker */
+.card-row td {
+  position: relative;
+}
+.card-row td::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -4px;
+  height: 4px;
+}
+
+/* ─── Sidebar-Layout-Overrides ────────────────────────────────────────────────
+   Pages benutzen historisch `max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8` als
+   Container und sticky-Werte ausgerichtet auf eine 64px-Top-Header-Hoehe.
+   Mit der Sidebar-only-Navigation (Header weg) korrigieren wir hier zentral:
+   - Container nutzt die volle verfuegbare Breite mit fixen 50px Gutters.
+   - Sticky-Offsets ruecken um 64px nach oben (kein Header mehr).
+   - Statistik-Overlay (`fixed top-16 left-0 right-0`) startet rechts der
+     Sidebar (240px) statt am Viewport-Rand.
+
+   Alternative waere, jede Page-Datei direkt zu aendern — der Override hier
+   ist bewusst zentralisiert, damit die Pages unangetastet bleiben und ein
+   Layout-Wechsel an einer Stelle moeglich ist. */
+.max-w-\[1400px\] {
+  max-width: none;
+  padding-left: 50px;
+  padding-right: 50px;
+}
+/* Mobile (<md / <768px): keine Sidebar, kein Platz fuer 50px-Gutter — auf
+   16px reduzieren, buendig mit der Top-Bar (px-4) / dem Hamburger-Menue. */
+@media (max-width: 767px) {
+  .max-w-\[1400px\] {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}
+.top-16 { top: 0; }
+.top-\[64px\] { top: 0; }
+.top-\[128px\] { top: 64px; }
+.top-\[136px\] { top: 72px; }
+.top-\[140px\] { top: 76px; }
+.fixed.top-16.left-0 {
+  top: 0;
+  left: 240px;
+}

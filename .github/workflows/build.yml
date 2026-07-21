@@ -1,0 +1,60 @@
+name: Build & Push Image
+
+# Baut das Docker-Image auf GitHubs x86-Runnern (gleiche Architektur wie der
+# Synology) und pusht es in die GitHub Container Registry (GHCR). Der Deploy
+# auf der NAS zieht danach nur noch das fertige Image (Muster TaikoEat).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  # Gate: Self-Tests + Build muessen gruen sein, sonst kein Image.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
+      - name: Install deps (root)
+        run: npm ci
+      - name: Install deps (server)
+        run: npm ci --prefix server
+      - name: Test
+        run: npm test
+      - name: Build (Smoke)
+        run: npm run build
+
+  build:
+    needs: test
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64
+          tags: |
+            ghcr.io/propman4k/taikohub:latest
+            ghcr.io/propman4k/taikohub:${{ github.sha }}

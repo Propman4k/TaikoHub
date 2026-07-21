@@ -1,0 +1,26 @@
+{
+  "name": "taiko-hub",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -n server,client -c cyan,green \"npm --prefix server run dev\" \"vite --port 3005\"",
+    "dev:client": "vite --port 3005",
+    "dev:server": "npm --prefix server run dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "node server/test-db.mjs && node launcher.mjs test"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.2.1",
+    "lucide-react": "^0.577.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "tailwindcss": "^4.2.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^5.1.1",
+    "concurrently": "^10.0.3",
+    "vite": "^7.3.1"
+  }
+}

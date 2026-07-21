@@ -150,7 +150,8 @@ if (isProd) {
   }
 }
 
-app.use((err, req, res, next) => {
+// 4 Argumente noetig, damit Express das als Error-Middleware erkennt.
+app.use((err, req, res, _next) => {
   console.error(err)
   res.status(500).json({ error: 'server error' })
 })

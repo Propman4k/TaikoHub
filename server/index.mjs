@@ -13,8 +13,11 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 // override: .env hat Vorrang vor ererbten Shell-Vars (z.B. PORT vom Dev-Harness).
 dotenv.config({ path: join(__dirname, '.env'), override: true })
 
-// ENV-Pflichtfelder frueh pruefen (fail-fast).
-for (const k of ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'ALLOWED_EMAILS']) {
+// ENV-Pflichtfelder frueh pruefen (fail-fast). SESSION_SECRET nur in Prod Pflicht:
+// der Dev-Fallback unten steht im public Repo und darf nie Prod-Cookies signieren.
+const requiredEnv = ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'ALLOWED_EMAILS']
+if (process.env.NODE_ENV === 'production') requiredEnv.push('SESSION_SECRET')
+for (const k of requiredEnv) {
   if (!process.env[k]) { console.error(`FEHLT ENV: ${k}`); process.exit(1) }
 }
 

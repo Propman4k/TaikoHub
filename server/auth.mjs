@@ -78,8 +78,12 @@ export function authRoutes() {
       const { tokens } = await client.getToken(req.query.code)
       client.setCredentials(tokens)
       const { data } = await google.oauth2({ version: 'v2', auth: client }).userinfo.get()
+      if (data.verified_email === false) return res.status(403).send('Email nicht verifiziert.')
       if (!isEmailAllowed(data.email)) return res.status(403).send('Kein Zugriff fuer diese Adresse.')
       upsertUser({ email: data.email, name: data.name || data.email, picture: data.picture || '' })
+      // Frische Session-ID nach Login (Session-Fixation-Hygiene).
+      await new Promise((resolve, reject) =>
+        req.session.regenerate((err) => (err ? reject(err) : resolve())))
       req.session.authenticated = true
       req.session.email = data.email
       res.redirect('/')

@@ -8,6 +8,7 @@ import SqliteStoreFactory from 'better-sqlite3-session-store'
 import Database from 'better-sqlite3'
 import helmet from 'helmet'
 import cors from 'cors'
+import rateLimit from 'express-rate-limit'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 // override: .env hat Vorrang vor ererbten Shell-Vars (z.B. PORT vom Dev-Harness).
@@ -50,6 +51,8 @@ app.use(session({
 }))
 
 app.get('/api/health', (req, res) => res.json({ ok: true }))
+// Auth-Routen drosseln — die Tunnel-URL ist oeffentlich erreichbar.
+app.use('/api/auth', rateLimit({ windowMs: 15 * 60 * 1000, limit: 60, standardHeaders: true, legacyHeaders: false }))
 app.use('/api/auth', authRoutes())
 
 // ── Validierung ───────────────────────────────────────────────────────────────

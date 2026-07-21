@@ -97,13 +97,9 @@ export function authRoutes() {
     req.session.destroy(() => res.json({ ok: true }))
   })
 
-  router.get('/me', (req, res) => {
-    if (!req.session?.authenticated || !isEmailAllowed(req.session.email))
-      return res.status(401).json({ error: 'unauthenticated' })
-    const user = getUserByEmail(req.session.email)
-    if (!user) return res.status(401).json({ error: 'unknown user' })
-    res.json({ id: user.id, email: user.email, name: user.name, picture: user.picture, isAdmin: isAdmin(user.email) })
-  })
+  router.get('/me', requireAuth, (req, res) =>
+    res.json({ id: req.user.id, email: req.user.email, name: req.user.name,
+               picture: req.user.picture, isAdmin: isAdmin(req.user.email) }))
 
   return router
 }

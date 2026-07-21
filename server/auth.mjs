@@ -15,11 +15,20 @@ const {
 } = process.env
 
 // Eintraege: exakte Emails ODER Domain-Wildcards ("@taikonauten.com" -> ganze Domain).
-const ALLOWLIST = ALLOWED_EMAILS.split(',').map((e) => e.trim().toLowerCase()).filter(Boolean)
-export const isEmailAllowed = (email) => {
+const parseList = (s) => (s || '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean)
+const inList = (list, email) => {
   if (!email) return false
   const e = email.toLowerCase()
-  return ALLOWLIST.some((entry) => entry.startsWith('@') ? e.endsWith(entry) : e === entry)
+  return list.some((entry) => entry.startsWith('@') ? e.endsWith(entry) : e === entry)
+}
+const ALLOWLIST = parseList(ALLOWED_EMAILS)
+const ADMINS = parseList(process.env.ADMIN_EMAILS)
+export const isEmailAllowed = (email) => inList(ALLOWLIST, email)
+export const isAdmin = (email) => inList(ADMINS, email)
+
+export const requireAdmin = (req, res, next) => {
+  if (!req.user || !isAdmin(req.user.email)) return res.status(403).json({ error: 'admin only' })
+  next()
 }
 
 const REDIRECT_URI = `${APP_URL}/api/auth/login/callback`
@@ -89,7 +98,7 @@ export function authRoutes() {
       return res.status(401).json({ error: 'unauthenticated' })
     const user = getUserByEmail(req.session.email)
     if (!user) return res.status(401).json({ error: 'unknown user' })
-    res.json({ id: user.id, email: user.email, name: user.name, picture: user.picture })
+    res.json({ id: user.id, email: user.email, name: user.name, picture: user.picture, isAdmin: isAdmin(user.email) })
   })
 
   return router

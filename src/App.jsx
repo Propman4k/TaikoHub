@@ -422,7 +422,7 @@ export default function App() {
   if (me === undefined)
     return <div className="min-h-screen flex items-center justify-center text-text-light"><Loader2 className="animate-spin" /></div>
   if (me === null) return <LoginPage />
-  if (view === 'settings') return <SettingsPage onBack={() => setView('board')} />
+  if (view === 'settings') return <SettingsPage me={me} onBack={() => setView('board')} />
 
   return (
     <div className="min-h-screen">
@@ -462,8 +462,10 @@ export default function App() {
                 {me.picture && <img src={me.picture} alt="" className="w-6 h-6 rounded-full" />}
                 <span className="text-xs text-text-muted truncate">{me.name}</span>
               </div>
-              <MenuItem icon={Plus} onClick={menuAction(() => setEditor({}))}>Neues Tool</MenuItem>
-              {launcher && (
+              {me.isAdmin && (
+                <MenuItem icon={Plus} onClick={menuAction(() => setEditor({}))}>Neues Tool</MenuItem>
+              )}
+              {me.isAdmin && launcher && (
                 <MenuItem icon={AppWindow} onClick={menuAction(() => setMacPicker(true))}>Aus Mac-App anlegen</MenuItem>
               )}
               <MenuItem icon={Grid2x2} onClick={() => setSnap((s) => !s)}>
@@ -506,7 +508,7 @@ export default function App() {
 }
 
 // Eigenstaendige Einstellungsseite (erweiterbar um weitere Sektionen).
-function SettingsPage({ onBack }) {
+function SettingsPage({ me, onBack }) {
   const [test, setTest] = useState('idle') // idle | testing | ok | fail
   // Schema-Test: Handler oeffnet kurz den Finder -> Fenster verliert Fokus = erkannt.
   const runTest = useCallback(() => {
@@ -593,8 +595,75 @@ function SettingsPage({ onBack }) {
             </p>
           </div>
         </section>
+
+        {me.isAdmin && <AdminTools />}
       </div>
     </div>
+  )
+}
+
+// Admin-Sektion: zentraler Tool-Katalog (anlegen, bearbeiten, pro Nutzer freigeben).
+function AdminTools() {
+  const [tools, setTools] = useState(null)
+  const [users, setUsers] = useState([])
+  const [editor, setEditor] = useState(null)
+
+  const reload = useCallback(async () => {
+    const [board, us, meRes] = await Promise.all([api.board(), api.users(), api.me().then((r) => r.json())])
+    setTools(board)
+    setUsers(us.filter((u) => u.id !== meRes.id))
+  }, [])
+  useEffect(() => { reload() }, [reload])
+
+  const save = async ({ toolId, tool, placement }) => {
+    if (!toolId) await api.createTool({ ...tool, macApp: placement.macApp })
+    else { await api.updateTool(toolId, tool); await api.placement(toolId, { macApp: placement.macApp }) }
+    setEditor(null); reload()
+  }
+  const del = async () => { await api.deleteTool(editor.toolId); setEditor(null); reload() }
+
+  return (
+    <section className="bg-surface rounded-[10px] shadow-card border border-border overflow-hidden">
+      <div className="px-6 py-4 border-b border-border flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold leading-tight">Tools verwalten</h2>
+          <p className="text-sm text-text-muted">Zentral anlegen und pro Person freigeben.</p>
+        </div>
+        <button onClick={() => setEditor({})}
+                className="inline-flex items-center gap-2 bg-brand text-white px-4 py-2 rounded-[6px]
+                           text-sm font-semibold hover:bg-brand-hover transition-colors">
+          <Plus size={16} strokeWidth={2.5} /> Neu
+        </button>
+      </div>
+
+      <div className="px-3 py-3 flex flex-col gap-1">
+        {tools === null && (
+          <div className="flex items-center justify-center py-8 text-text-light"><Loader2 className="animate-spin" /></div>
+        )}
+        {tools?.length === 0 && (
+          <p className="text-sm text-text-muted px-3 py-6 text-center">Noch keine Tools. Lege mit „Neu" das erste an.</p>
+        )}
+        {tools?.map((t) => (
+          <button key={t.toolId} onClick={() => setEditor(t)}
+                  className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-slate-50 text-left transition-colors">
+            <Glyph icon={t.icon} color={t.color} box={40} radius={9} glyph={20} />
+            <span className="flex-1 min-w-0">
+              <span className="block text-sm font-medium truncate">{t.name}</span>
+              <span className="block text-[11px] text-text-light truncate">{t.url}</span>
+            </span>
+            <span className="text-[11px] font-semibold text-text-muted bg-slate-100 rounded-full px-2.5 py-1 flex items-center gap-1">
+              <Share2 size={11} /> {t.sharedWith?.length || 0}
+            </span>
+            <Pencil size={14} className="text-slate-400" />
+          </button>
+        ))}
+      </div>
+
+      {editor && (
+        <Editor initial={editor.toolId ? editor : null} users={users}
+                onSave={save} onDelete={del} onClose={() => setEditor(null)} />
+      )}
+    </section>
   )
 }
 

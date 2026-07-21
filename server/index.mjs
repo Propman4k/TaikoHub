@@ -18,7 +18,7 @@ for (const k of ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'ALLOWED_EMAILS']) 
   if (!process.env[k]) { console.error(`FEHLT ENV: ${k}`); process.exit(1) }
 }
 
-const { authRoutes, requireAuth } = await import('./auth.mjs')
+const { authRoutes, requireAuth, requireAdmin } = await import('./auth.mjs')
 const dbmod = await import('./db.mjs')
 const {
   SESSION_DB_PATH, getBoard, listUsers, createTool, updateTool, deleteTool,
@@ -72,23 +72,24 @@ app.get('/api/board', requireAuth, (req, res) => {
   res.json(items)
 })
 
-app.post('/api/tools', requireAuth, (req, res) => {
+// Tool-Verwaltung nur fuer Admins (zentraler Katalog).
+app.post('/api/tools', requireAuth, requireAdmin, (req, res) => {
   const data = parseTool(req.body)
   if (!data) return res.status(400).json({ error: 'invalid tool' })
   const id = createTool(req.user.id, data, data.shareWith)
   res.status(201).json({ id })
 })
 
-app.patch('/api/tools/:id', requireAuth, (req, res) => {
-  if (getToolOwner(req.params.id) !== req.user.id) return res.status(403).json({ error: 'not owner' })
+app.patch('/api/tools/:id', requireAuth, requireAdmin, (req, res) => {
+  const owner = getToolOwner(req.params.id)
+  if (owner == null) return res.status(404).json({ error: 'not found' })
   const data = parseTool(req.body)
   if (!data) return res.status(400).json({ error: 'invalid tool' })
-  updateTool(req.params.id, req.user.id, data, data.shareWith)
+  updateTool(req.params.id, owner, data, data.shareWith)
   res.json({ ok: true })
 })
 
-app.delete('/api/tools/:id', requireAuth, (req, res) => {
-  if (getToolOwner(req.params.id) !== req.user.id) return res.status(403).json({ error: 'not owner' })
+app.delete('/api/tools/:id', requireAuth, requireAdmin, (req, res) => {
   deleteTool.run(req.params.id)
   res.json({ ok: true })
 })

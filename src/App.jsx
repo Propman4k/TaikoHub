@@ -320,6 +320,7 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [showHidden, setShowHidden] = useState(false)
   const [macPicker, setMacPicker] = useState(false)
+  const [launcher, setLauncher] = useState(false) // lokaler Launcher erreichbar?
   const boardRef = useRef(null)
 
   const reload = useCallback(async () => {
@@ -333,6 +334,16 @@ export default function App() {
     api.me().then((r) => r.ok ? r.json() : null).then(setMe).catch(() => setMe(null))
   }, [])
   useEffect(() => { if (me) reload() }, [me, reload])
+  // Lokalen Launcher proben (in Safari/https nicht erreichbar -> Mac-Features aus).
+  useEffect(() => {
+    if (!me) return
+    const ctrl = new AbortController()
+    const t = setTimeout(() => ctrl.abort(), 1500)
+    fetch('http://127.0.0.1:7890/', { signal: ctrl.signal })
+      .then((r) => setLauncher(r.ok)).catch(() => setLauncher(false))
+      .finally(() => clearTimeout(t))
+    return () => clearTimeout(t)
+  }, [me])
   useEffect(() => localStorage.setItem('taikohub.snap', snap ? '1' : '0'), [snap])
 
   const visible = apps.filter((a) => !a.hidden)
@@ -448,7 +459,9 @@ export default function App() {
                 <span className="text-xs text-text-muted truncate">{me.name}</span>
               </div>
               <MenuItem icon={Plus} onClick={menuAction(() => setEditor({}))}>Neues Tool</MenuItem>
-              <MenuItem icon={AppWindow} onClick={menuAction(() => setMacPicker(true))}>Aus Mac-App anlegen</MenuItem>
+              {launcher && (
+                <MenuItem icon={AppWindow} onClick={menuAction(() => setMacPicker(true))}>Aus Mac-App anlegen</MenuItem>
+              )}
               <MenuItem icon={Grid2x2} onClick={() => setSnap((s) => !s)}>
                 Am Raster ausrichten {snap && <Check size={15} className="ml-auto text-brand" />}
               </MenuItem>

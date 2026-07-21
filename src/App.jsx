@@ -296,6 +296,7 @@ function LoginPage() {
 // ── App / Board ─────────────────────────────────────────────────────────────
 export default function App() {
   const [me, setMe] = useState(undefined) // undefined=laedt, null=aus, obj=an
+  const [loaded, setLoaded] = useState(false) // Board schon einmal geladen?
   const [apps, setApps] = useState([])
   const [users, setUsers] = useState([])
   const [snap, setSnap] = useState(() => localStorage.getItem('taikohub.snap') === '1')
@@ -308,6 +309,7 @@ export default function App() {
     const [board, us] = await Promise.all([api.board(), api.users()])
     setApps(board)
     setUsers(us.filter((u) => u.id !== me?.id))
+    setLoaded(true)
   }, [me?.id])
 
   useEffect(() => {
@@ -384,7 +386,7 @@ export default function App() {
                      backgroundImage: snap ? 'radial-gradient(circle, #cbd5e1 1px, transparent 1px)' : 'none',
                      backgroundSize: snap ? `${CELL}px ${CELL}px` : undefined,
                      backgroundPosition: snap ? `${PAD}px ${PAD}px` : undefined }}>
-        {visible.length === 0 && (
+        {loaded && visible.length === 0 && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center px-6">
             <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-slate-100 text-slate-400">
               <ExternalLink size={28} />

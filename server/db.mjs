@@ -67,6 +67,11 @@ export const createUserByEmail = (email) =>
   db.prepare('INSERT OR IGNORE INTO users (email, name) VALUES (?, ?)').run(email.toLowerCase(), email.toLowerCase())
 export const deleteUser = db.prepare('DELETE FROM users WHERE id = ?')
 
+// Datenverlust-Schutz: User mit eigenen Tools darf nicht geloescht werden —
+// tools.owner_id ON DELETE CASCADE wuerde den Katalog samt aller shares/placements reissen.
+export const countToolsOwned = (userId) =>
+  db.prepare('SELECT COUNT(*) AS n FROM tools WHERE owner_id = ?').get(userId).n
+
 // Zugriffe eines Mitarbeiters (welche Tools sind fuer ihn freigegeben)
 export const getUserToolIds = (userId) =>
   db.prepare('SELECT tool_id FROM shares WHERE user_id = ?').all(userId).map((r) => r.tool_id)

@@ -27,6 +27,7 @@ const {
   SESSION_DB_PATH, getBoard, getAvailable, listAllTools, listUsers, createTool,
   updateTool, deleteTool, getToolOwner, canSeeTool, getShareUserIds, upsertPlacement,
   getUserByEmail, createUserByEmail, deleteUser, getUserToolIds, setUserAccess,
+  countToolsOwned,
 } = dbmod
 
 const isProd = process.env.NODE_ENV === 'production'
@@ -76,14 +77,19 @@ app.post('/api/users', requireAuth, requireAdmin, (req, res) => {
   res.status(201).json(getUserByEmail(email))
 })
 app.delete('/api/users/:id', requireAuth, requireAdmin, (req, res) => {
-  if (Number(req.params.id) === req.user.id) return res.status(400).json({ error: 'self' })
-  deleteUser.run(Number(req.params.id))
+  const id = Number(req.params.id)
+  if (id === req.user.id) return res.status(400).json({ error: 'self' })
+  // Kaskaden-Schutz: eigene Tools wuerden mitgeloescht (siehe countToolsOwned).
+  if (countToolsOwned(id) > 0) return res.status(400).json({ error: 'owns tools' })
+  deleteUser.run(id)
   res.json({ ok: true })
 })
 app.get('/api/users/:id/access', requireAuth, requireAdmin, (req, res) =>
   res.json(getUserToolIds(Number(req.params.id))))
 app.put('/api/users/:id/access', requireAuth, requireAdmin, (req, res) => {
   const ids = Array.isArray(req.body?.toolIds) ? req.body.toolIds.map(String) : []
+  const known = new Set(listAllTools().map((t) => t.toolId))
+  if (!ids.every((id) => known.has(id))) return res.status(400).json({ error: 'unknown tool' })
   setUserAccess(Number(req.params.id), ids)
   res.json({ ok: true })
 })

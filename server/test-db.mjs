@@ -2,7 +2,7 @@
 // Lauf: node test-db.mjs
 import db, {
   upsertUser, getBoard, getAvailable, createTool, updateTool, upsertPlacement, getShareUserIds,
-  getUserToolIds, setUserAccess,
+  getUserToolIds, setUserAccess, countToolsOwned,
 } from './db.mjs'
 
 const assert = (c, m) => { if (!c) { console.error('FAIL:', m); cleanup(); process.exit(1) } }
@@ -23,6 +23,9 @@ assert(getBoard(bId).length === 0, 'B: Board leer nach Freigabe')
 assert(has(getAvailable(aId), tid), 'A: Tool verfuegbar')
 assert(has(getAvailable(bId), tid), 'B: Tool verfuegbar')
 assert(getShareUserIds(tid).includes(bId), 'Share existiert')
+// Kaskaden-Schutz-Basis: Owner-Zaehlung stimmt (DELETE-User-Guard haengt daran)
+assert(countToolsOwned(aId) === 1, 'A besitzt 1 Tool')
+assert(countToolsOwned(bId) === 0, 'B besitzt keine Tools')
 
 // B fuegt hinzu
 upsertPlacement(bId, tid, { x: 10, y: 20, macApp: 'BApp' })

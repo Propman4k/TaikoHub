@@ -684,7 +684,10 @@ function AppsAdmin({ meId }) {
     if (toolId) await api.updateTool(toolId, tool); else await api.createTool(tool)
     setEditing(null); reload()
   }
-  const del = async (id) => { await api.deleteTool(id); setEditing(null); reload() }
+  const del = async (id) => {
+    if (!confirm('App fuer alle loeschen? Freigaben und Board-Platzierungen aller Nutzer gehen verloren.')) return
+    await api.deleteTool(id); setEditing(null); reload()
+  }
 
   if (editing !== null)
     return <AppForm initial={editing.toolId ? editing : null} users={users}
@@ -857,7 +860,12 @@ function StaffAdmin({ meId }) {
     setBusy(false)
     if (r.ok) { setEmail(''); reload() } else alert('Email nicht erlaubt (nur @taikonauten.com).')
   }
-  const remove = async (id) => { await api.deleteUser(id); reload() }
+  const remove = async (u) => {
+    if (!confirm(`${u.name} wirklich entfernen? Freigaben und Board-Anordnung gehen verloren.`)) return
+    const r = await api.deleteUser(u.id)
+    if (!r.ok) alert('Nicht entfernbar — dieser Account hat selbst Apps angelegt.')
+    reload()
+  }
 
   if (editing) return <StaffAccess user={editing} tools={tools} onBack={() => { setEditing(null); reload() }} />
 
@@ -865,7 +873,8 @@ function StaffAdmin({ meId }) {
     <div>
       <div className="mb-4">
         <h2 className="text-xl font-bold tracking-tight">Mitarbeiter</h2>
-        <p className="text-sm text-text-muted">Wer Zugriff bekommt und welche Apps sie hinzufuegen duerfen.</p>
+        <p className="text-sm text-text-muted">Wer Zugriff bekommt und welche Apps sie hinzufuegen duerfen.
+          Den Login selbst regelt die Allowlist (@taikonauten.com) — Entfernen loescht nur Freigaben und Board.</p>
       </div>
 
       <div className="bg-surface rounded-[10px] shadow-card border border-border p-3 flex items-center gap-2 mb-4">
@@ -893,7 +902,7 @@ function StaffAdmin({ meId }) {
               Zugriffe
             </button>
             {u.id !== meId && (
-              <button onClick={() => remove(u.id)} title="Entfernen"
+              <button onClick={() => remove(u)} title="Entfernen"
                       className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors">
                 <Trash2 size={15} />
               </button>

@@ -32,7 +32,7 @@ if (isProd) app.set('trust proxy', 1)
 
 app.use(helmet({ contentSecurityPolicy: false }))
 app.use(cors({ origin: process.env.APP_URL || 'http://localhost:3005', credentials: true }))
-app.use(express.json())
+app.use(express.json({ limit: '1mb' })) // Icon-Data-URIs koennen ein paar KB haben
 
 const SqliteStore = SqliteStoreFactory(session)
 app.use(session({

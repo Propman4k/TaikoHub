@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import * as Lucide from 'lucide-react'
-import { Plus, Pencil, Trash2, X, Grid2x2, LayoutGrid, ExternalLink,
+import { Plus, Pencil, Trash2, X, LayoutGrid, ExternalLink,
          Settings, Check, EyeOff, LogOut, Share2, Loader2,
          SlidersHorizontal, ArrowLeft, Download, MonitorSmartphone } from 'lucide-react'
 
@@ -54,8 +54,6 @@ const SYNONYMS = {
 
 const BUILD_TIME = typeof __BUILD_TIME__ !== 'undefined' ? __BUILD_TIME__ : 'dev'
 
-const snapTo = (v) => Math.round((v - PAD) / CELL) * CELL + PAD
-
 function Icon({ name, ...props }) {
   const C = Lucide[name] || Lucide.AppWindow
   return <C {...props} />
@@ -93,13 +91,13 @@ const api = {
 }
 
 // ── App-Icon-Kachel ───────────────────────────────────────────────────────
-function AppTile({ app, snap, boardRef, onMoveLocal, onCommit, onOpen, onEdit }) {
+function AppTile({ app, boardRef, onMoveLocal, onDrop, onOpen, onEdit }) {
   const drag = useRef(null)
 
   const onPointerDown = (e) => {
     if (e.button !== 0) return
     const rect = boardRef.current.getBoundingClientRect()
-    drag.current = { startX: e.clientX, startY: e.clientY,
+    drag.current = { startX: e.clientX, startY: e.clientY, origX: app.x, origY: app.y,
       offX: e.clientX - rect.left - app.x, offY: e.clientY - rect.top - app.y, moved: false }
     e.currentTarget.setPointerCapture(e.pointerId)
   }
@@ -118,10 +116,7 @@ function AppTile({ app, snap, boardRef, onMoveLocal, onCommit, onOpen, onEdit })
     drag.current = null
     if (!d) return
     if (!d.moved) { onOpen(app); return }
-    const x = snap ? Math.max(0, snapTo(app.x)) : app.x
-    const y = snap ? Math.max(0, snapTo(app.y)) : app.y
-    onMoveLocal(app.toolId, x, y)
-    onCommit(app.toolId, x, y)
+    onDrop(app.toolId, app.x, app.y, d.origX, d.origY) // Zielposition + Startposition -> Swap in App
   }
 
   return (
@@ -350,7 +345,6 @@ export default function App() {
   const [loaded, setLoaded] = useState(false) // Board schon einmal geladen?
   const [apps, setApps] = useState([])
   const [users, setUsers] = useState([])
-  const [snap, setSnap] = useState(() => localStorage.getItem('taikohub.snap') === '1')
   const [editor, setEditor] = useState(null) // Board-Optionen einer Kachel
   const [menuOpen, setMenuOpen] = useState(false)
   const [addPicker, setAddPicker] = useState(false)
@@ -368,13 +362,27 @@ export default function App() {
     api.me().then((r) => r.ok ? r.json() : null).then(setMe).catch(() => setMe(null))
   }, [])
   useEffect(() => { if (me) reload() }, [me, reload])
-  useEffect(() => localStorage.setItem('taikohub.snap', snap ? '1' : '0'), [snap])
 
   const visible = apps // Board liefert nur hinzugefuegte (hidden=0) Tools
 
   const moveLocal = (toolId, x, y) =>
     setApps((cur) => cur.map((a) => (a.toolId === toolId ? { ...a, x, y } : a)))
-  const commitPos = (toolId, x, y) => api.placement(toolId, { x, y })
+
+  const cellOf = (v) => Math.max(0, Math.round((v - PAD) / CELL))
+  const cellPos = (c) => PAD + c * CELL
+
+  // Drop: an Rasterzelle einrasten; ist die Zelle belegt, rueckt der Bewohner auf
+  // die freigewordene Startzelle (Swap) -> keine Ueberlappung.
+  const dropTile = (toolId, x, y, origX, origY) => {
+    const col = cellOf(x), row = cellOf(y)
+    const tx = cellPos(col), ty = cellPos(row)
+    const occupant = apps.find((a) => a.toolId !== toolId && cellOf(a.x) === col && cellOf(a.y) === row)
+    moveLocal(toolId, tx, ty); api.placement(toolId, { x: tx, y: ty })
+    if (occupant) {
+      const ox = cellPos(cellOf(origX)), oy = cellPos(cellOf(origY))
+      moveLocal(occupant.toolId, ox, oy); api.placement(occupant.toolId, { x: ox, y: oy })
+    }
+  }
 
   const openInWindow = (app) => {
     const w = Math.min(1400, screen.availWidth - 80), h = Math.min(900, screen.availHeight - 80)
@@ -430,11 +438,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen">
-      <main ref={boardRef} className="relative min-h-screen"
-            style={{ padding: PAD,
-                     backgroundImage: snap ? 'radial-gradient(circle, #cbd5e1 1px, transparent 1px)' : 'none',
-                     backgroundSize: snap ? `${CELL}px ${CELL}px` : undefined,
-                     backgroundPosition: snap ? `${PAD}px ${PAD}px` : undefined }}>
+      <main ref={boardRef} className="relative min-h-screen" style={{ padding: PAD }}>
         {loaded && visible.length === 0 && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center px-6">
             <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-slate-100 text-slate-400">
@@ -448,8 +452,8 @@ export default function App() {
           </div>
         )}
         {visible.map((app) => (
-          <AppTile key={app.toolId} app={app} snap={snap} boardRef={boardRef}
-                   onMoveLocal={moveLocal} onCommit={commitPos} onOpen={openApp} onEdit={setEditor} />
+          <AppTile key={app.toolId} app={app} boardRef={boardRef}
+                   onMoveLocal={moveLocal} onDrop={dropTile} onOpen={openApp} onEdit={setEditor} />
         ))}
       </main>
 
@@ -468,9 +472,6 @@ export default function App() {
                 <span className="text-xs text-text-muted truncate">{me.name}</span>
               </div>
               <MenuItem icon={Plus} onClick={menuAction(() => setAddPicker(true))}>Tool hinzufuegen</MenuItem>
-              <MenuItem icon={Grid2x2} onClick={() => setSnap((s) => !s)}>
-                Am Raster ausrichten {snap && <Check size={15} className="ml-auto text-brand" />}
-              </MenuItem>
               <MenuItem icon={LayoutGrid} onClick={menuAction(arrange)}>Anordnen</MenuItem>
               <MenuItem icon={SlidersHorizontal} onClick={menuAction(() => setView('settings'))}>Einstellungen</MenuItem>
               <MenuItem icon={LogOut} onClick={menuAction(logout)}>Abmelden</MenuItem>

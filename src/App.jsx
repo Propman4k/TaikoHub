@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import * as Lucide from 'lucide-react'
 import { Plus, Pencil, Trash2, X, LayoutGrid, ExternalLink,
-         Settings, Check, EyeOff, LogOut, Share2, Loader2,
+         Settings, Check, EyeOff, LogOut, Share2, Loader2, Users, UserPlus,
          SlidersHorizontal, ArrowLeft, Download, MonitorSmartphone } from 'lucide-react'
 
 // ── Konstanten ────────────────────────────────────────────────────────────
@@ -81,6 +81,12 @@ const api = {
   available: () => fetch('/api/available', { credentials: 'include' }).then((r) => r.json()),
   allTools: () => fetch('/api/tools', { credentials: 'include' }).then((r) => r.json()),
   users: () => fetch('/api/users', { credentials: 'include' }).then((r) => r.json()),
+  createUser: (email) => fetch('/api/users', { method: 'POST', credentials: 'include',
+    headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) }),
+  deleteUser: (id) => fetch(`/api/users/${id}`, { method: 'DELETE', credentials: 'include' }),
+  userAccess: (id) => fetch(`/api/users/${id}/access`, { credentials: 'include' }).then((r) => r.json()),
+  setUserAccess: (id, toolIds) => fetch(`/api/users/${id}/access`, { method: 'PUT', credentials: 'include',
+    headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ toolIds }) }),
   createTool: (d) => fetch('/api/tools', { method: 'POST', credentials: 'include',
     headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(d) }),
   updateTool: (id, d) => fetch(`/api/tools/${id}`, { method: 'PATCH', credentials: 'include',
@@ -561,17 +567,57 @@ function AddToolPicker({ onAdd, onClose }) {
   )
 }
 
-// Eigenstaendige Einstellungsseite (erweiterbar um weitere Sektionen).
+// Eigenstaendige Einstellungsseite mit Seiten-Navigation.
 function SettingsPage({ me, onBack }) {
+  const NAV = [
+    ...(me.isAdmin ? [{ id: 'apps', label: 'Apps', icon: LayoutGrid }] : []),
+    { id: 'opener', label: 'TaikoHub Opener', icon: MonitorSmartphone },
+    ...(me.isAdmin ? [{ id: 'staff', label: 'Mitarbeiter', icon: Users }] : []),
+  ]
+  const [section, setSection] = useState(NAV[0].id)
+
+  return (
+    <div className="min-h-screen bg-surface-raised flex flex-col">
+      <header className="bg-surface border-b border-border sticky top-0 z-40">
+        <div className="max-w-[1000px] mx-auto px-4 sm:px-6 h-16 flex items-center gap-3">
+          <button onClick={onBack}
+                  className="p-2 -ml-2 text-slate-500 hover:text-brand hover:bg-brand/5 rounded-md transition-colors"
+                  title="Zurueck">
+            <ArrowLeft size={20} />
+          </button>
+          <h1 className="text-2xl font-bold tracking-tight">Einstellungen</h1>
+        </div>
+      </header>
+
+      <div className="flex-1 w-full max-w-[1000px] mx-auto flex">
+        <nav className="w-44 flex-shrink-0 border-r border-border p-3 flex flex-col gap-1">
+          {NAV.map((n) => (
+            <button key={n.id} onClick={() => setSection(n.id)}
+                    className={`flex items-center gap-2.5 px-3 py-2.5 rounded-md text-sm font-medium text-left transition-colors ${
+                      section === n.id ? 'bg-brand/10 text-brand' : 'text-slate-600 hover:bg-slate-100'}`}>
+              <n.icon size={17} /> {n.label}
+            </button>
+          ))}
+        </nav>
+        <main className="flex-1 min-w-0 p-6 overflow-y-auto">
+          {section === 'apps' && <AppsAdmin meId={me.id} />}
+          {section === 'opener' && <OpenerSection />}
+          {section === 'staff' && <StaffAdmin meId={me.id} />}
+        </main>
+      </div>
+    </div>
+  )
+}
+
+// Sektion: TaikoHub Opener (Download + Schema-Test).
+function OpenerSection() {
   const [test, setTest] = useState('idle') // idle | testing | ok | fail
-  // Schema-Test: Handler oeffnet kurz den Finder -> Fenster verliert Fokus = erkannt.
   const runTest = useCallback(() => {
     setTest('testing')
     let seen = false
     const cancel = () => { seen = true }
     window.addEventListener('blur', cancel, { once: true })
     document.addEventListener('visibilitychange', cancel, { once: true })
-    // Transientes Fenster (kein Wegnavigieren der Seite); macOS faengt das Schema ab.
     const w = window.open('taikohub://open?name=Finder', '_blank')
     setTimeout(() => {
       try { w && w.close() } catch { /* egal */ }
@@ -582,123 +628,87 @@ function SettingsPage({ me, onBack }) {
   }, [])
 
   return (
-    <div className="min-h-screen bg-surface-raised">
-      <header className="bg-surface border-b border-border sticky top-0 z-40">
-        <div className="max-w-[820px] mx-auto px-4 sm:px-6 h-16 flex items-center gap-3">
-          <button onClick={onBack}
-                  className="p-2 -ml-2 text-slate-500 hover:text-brand hover:bg-brand/5 rounded-md transition-colors"
-                  title="Zurueck">
-            <ArrowLeft size={20} />
-          </button>
-          <h1 className="text-2xl font-bold tracking-tight">Einstellungen</h1>
+    <section className="bg-surface rounded-[10px] shadow-card border border-border overflow-hidden">
+      <div className="px-6 py-4 border-b border-border flex items-center gap-3">
+        <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-brand/10 text-brand">
+          <MonitorSmartphone size={20} />
         </div>
-      </header>
-
-      <div className="max-w-[820px] mx-auto px-4 sm:px-6 py-8 flex flex-col gap-6">
-        {/* Sektion: TaikoHub Opener */}
-        <section className="bg-surface rounded-[10px] shadow-card border border-border overflow-hidden">
-          <div className="px-6 py-4 border-b border-border flex items-center gap-3">
-            <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-brand/10 text-brand">
-              <MonitorSmartphone size={20} />
-            </div>
-            <div className="flex-1">
-              <h2 className="text-lg font-semibold leading-tight">TaikoHub Opener</h2>
-              <p className="text-sm text-text-muted">Oeffnet Tools als installierte App statt im Browser.</p>
-            </div>
-            {test === 'testing'
-              ? <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 bg-slate-100 rounded-full px-3 py-1">
-                  <Loader2 size={13} className="animate-spin" /> Teste
-                </span>
-              : test === 'ok'
-                ? <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 ring-1 ring-emerald-200 rounded-full px-3 py-1">
-                    <Check size={13} /> Aktiv
-                  </span>
-                : test === 'fail'
-                  ? <span className="text-xs font-semibold text-amber-700 bg-amber-50 ring-1 ring-amber-200 rounded-full px-3 py-1">Nicht erkannt</span>
-                  : <span className="text-xs font-semibold text-slate-500 bg-slate-100 rounded-full px-3 py-1">Opener</span>}
-          </div>
-
-          <div className="px-6 py-5 flex flex-col gap-4">
-            <p className="text-sm text-text-muted">
-              Einmal installieren, dann oeffnen die Kacheln die als App installierten Tools direkt
-              (z.B. TaikoTasks als eigene App). Ohne den Opener oeffnen sie sich in einem Browser-Fenster.
-            </p>
-
-            <div className="flex items-center gap-2">
-              <a href="/TaikoHub-Opener.zip" download
-                 className="inline-flex items-center gap-2 bg-brand text-white px-5 py-2.5 rounded-[6px]
-                            text-sm font-semibold hover:bg-brand-hover transition-colors">
-                <Download size={18} /> Opener herunterladen
-              </a>
-              <button onClick={runTest}
-                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-[6px] text-sm font-semibold
-                                 text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 transition-colors">
-                Verbindung testen
-              </button>
-            </div>
-
-            <ol className="text-sm text-text-muted list-decimal list-inside space-y-1.5">
-              <li>Datei herunterladen und im Downloads-Ordner <span className="font-medium text-text">doppelklicken</span> (entpackt <span className="font-medium text-text">TaikoHub Opener</span>).</li>
-              <li>Auf <span className="font-medium text-text">TaikoHub Opener</span> rechtsklicken &rarr; <span className="font-medium text-text">Oeffnen</span> &rarr; im Dialog nochmal <span className="font-medium text-text">Oeffnen</span> (einmalige Bestaetigung).</li>
-              <li>Zurueck hier auf <span className="font-medium text-text">Verbindung testen</span> &mdash; wird's gruen, ist alles bereit.</li>
-            </ol>
-
-            <p className="text-[12px] text-text-light">
-              Der Opener ist ein kleines Programm, das nur lokal die installierte App startet &mdash;
-              es laeuft im Hintergrund, kein Fenster. Voraussetzung: die jeweilige App ist auf dem Mac installiert.
-            </p>
-          </div>
-        </section>
-
-        {me.isAdmin && <AdminTools />}
+        <div className="flex-1">
+          <h2 className="text-lg font-semibold leading-tight">TaikoHub Opener</h2>
+          <p className="text-sm text-text-muted">Oeffnet Tools als installierte App statt im Browser.</p>
+        </div>
+        {test === 'ok'
+          ? <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 ring-1 ring-emerald-200 rounded-full px-3 py-1"><Check size={13} /> Aktiv</span>
+          : test === 'fail'
+            ? <span className="text-xs font-semibold text-amber-700 bg-amber-50 ring-1 ring-amber-200 rounded-full px-3 py-1">Nicht erkannt</span>
+            : test === 'testing'
+              ? <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 bg-slate-100 rounded-full px-3 py-1"><Loader2 size={13} className="animate-spin" /> Teste</span>
+              : null}
       </div>
-    </div>
+      <div className="px-6 py-5 flex flex-col gap-4">
+        <p className="text-sm text-text-muted">
+          Einmal installieren, dann oeffnen die Kacheln die als App installierten Tools direkt.
+          Ohne den Opener oeffnen sie sich in einem Browser-Fenster.
+        </p>
+        <div className="flex items-center gap-2">
+          <a href="/TaikoHub-Opener.zip" download
+             className="inline-flex items-center gap-2 bg-brand text-white px-5 py-2.5 rounded-[6px] text-sm font-semibold hover:bg-brand-hover transition-colors">
+            <Download size={18} /> Opener herunterladen
+          </a>
+          <button onClick={runTest}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-[6px] text-sm font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 transition-colors">
+            Verbindung testen
+          </button>
+        </div>
+        <ol className="text-sm text-text-muted list-decimal list-inside space-y-1.5">
+          <li>Datei herunterladen und im Downloads-Ordner <span className="font-medium text-text">doppelklicken</span>.</li>
+          <li>Auf <span className="font-medium text-text">TaikoHub Opener</span> rechtsklicken &rarr; <span className="font-medium text-text">Oeffnen</span> &rarr; nochmal <span className="font-medium text-text">Oeffnen</span>.</li>
+          <li>Hier auf <span className="font-medium text-text">Verbindung testen</span> &mdash; wird's gruen, ist alles bereit.</li>
+        </ol>
+      </div>
+    </section>
   )
 }
 
-// Admin-Sektion: zentraler Tool-Katalog (anlegen, bearbeiten, pro Nutzer freigeben).
-function AdminTools() {
+// Apps: zentraler Tool-Katalog. Liste + Inline-Formular (kein Overlay).
+function AppsAdmin({ meId }) {
   const [tools, setTools] = useState(null)
   const [users, setUsers] = useState([])
-  const [editor, setEditor] = useState(null)
+  const [editing, setEditing] = useState(null) // null=Liste, {}=neu, tool=bearbeiten
 
   const reload = useCallback(async () => {
-    const [all, us, meRes] = await Promise.all([api.allTools(), api.users(), api.me().then((r) => r.json())])
-    setTools(all)
-    setUsers(us.filter((u) => u.id !== meRes.id))
-  }, [])
+    const [all, us] = await Promise.all([api.allTools(), api.users()])
+    setTools(all); setUsers(us.filter((u) => u.id !== meId))
+  }, [meId])
   useEffect(() => { reload() }, [reload])
 
   const save = async ({ toolId, tool }) => {
-    if (!toolId) await api.createTool(tool)
-    else await api.updateTool(toolId, tool)
-    setEditor(null); reload()
+    if (toolId) await api.updateTool(toolId, tool); else await api.createTool(tool)
+    setEditing(null); reload()
   }
-  const del = async () => { await api.deleteTool(editor.toolId); setEditor(null); reload() }
+  const del = async (id) => { await api.deleteTool(id); setEditing(null); reload() }
+
+  if (editing !== null)
+    return <AppForm initial={editing.toolId ? editing : null} users={users}
+                    onSave={save} onDelete={del} onCancel={() => setEditing(null)} />
 
   return (
-    <section className="bg-surface rounded-[10px] shadow-card border border-border overflow-hidden">
-      <div className="px-6 py-4 border-b border-border flex items-center justify-between">
+    <div>
+      <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-lg font-semibold leading-tight">Tools verwalten</h2>
-          <p className="text-sm text-text-muted">Zentral anlegen und pro Person freigeben.</p>
+          <h2 className="text-xl font-bold tracking-tight">Apps</h2>
+          <p className="text-sm text-text-muted">Zentral anlegen und pro Mitarbeiter freigeben.</p>
         </div>
-        <button onClick={() => setEditor({})}
-                className="inline-flex items-center gap-2 bg-brand text-white px-4 py-2 rounded-[6px]
-                           text-sm font-semibold hover:bg-brand-hover transition-colors">
+        <button onClick={() => setEditing({})}
+                className="inline-flex items-center gap-2 bg-brand text-white px-4 py-2 rounded-[6px] text-sm font-semibold hover:bg-brand-hover transition-colors">
           <Plus size={16} strokeWidth={2.5} /> Neu
         </button>
       </div>
-
-      <div className="px-3 py-3 flex flex-col gap-1">
-        {tools === null && (
-          <div className="flex items-center justify-center py-8 text-text-light"><Loader2 className="animate-spin" /></div>
-        )}
-        {tools?.length === 0 && (
-          <p className="text-sm text-text-muted px-3 py-6 text-center">Noch keine Tools. Lege mit „Neu" das erste an.</p>
-        )}
+      <div className="bg-surface rounded-[10px] shadow-card border border-border p-2 flex flex-col gap-1">
+        {tools === null && <div className="flex items-center justify-center py-8 text-text-light"><Loader2 className="animate-spin" /></div>}
+        {tools?.length === 0 && <p className="text-sm text-text-muted px-3 py-6 text-center">Noch keine Apps. Lege mit „Neu" die erste an.</p>}
         {tools?.map((t) => (
-          <button key={t.toolId} onClick={() => setEditor(t)}
+          <button key={t.toolId} onClick={() => setEditing(t)}
                   className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-slate-50 text-left transition-colors">
             <Glyph icon={t.icon} color={t.color} box={40} radius={9} glyph={20} />
             <span className="flex-1 min-w-0">
@@ -712,12 +722,234 @@ function AdminTools() {
           </button>
         ))}
       </div>
+    </div>
+  )
+}
 
-      {editor && (
-        <Editor initial={editor.toolId ? editor : null} users={users} allowContent
-                onSave={save} onDelete={del} onClose={() => setEditor(null)} />
-      )}
-    </section>
+// Inline-Formular fuer eine App (Inhalt + Verfuegbarkeit).
+function AppForm({ initial, users, onSave, onDelete, onCancel }) {
+  const [name, setName] = useState(initial?.name || '')
+  const [url, setUrl] = useState(initial?.url || '')
+  const [color, setColor] = useState(initial?.color || COLORS[0])
+  const [icon, setIcon] = useState(initial?.icon || 'AppWindow')
+  const [shareWith, setShareWith] = useState(initial?.sharedWith || [])
+  const [iconQuery, setIconQuery] = useState('')
+
+  const q = iconQuery.trim().toLowerCase()
+  const syn = (SYNONYMS[q] || '').split(' ').filter(Boolean)
+  const matches = q
+    ? ICONS.filter((n) => { const l = n.toLowerCase(); return l.includes(q) || syn.some((f) => l.includes(f)) })
+    : CURATED
+  const shown = matches.slice(0, ICON_CAP)
+  const toggleShare = (id) => setShareWith((s) => s.includes(id) ? s.filter((x) => x !== id) : [...s, id])
+  const canSave = name.trim() && url.trim()
+
+  return (
+    <div className="bg-surface rounded-[10px] shadow-card border border-border overflow-hidden">
+      <div className="px-5 py-4 border-b border-border flex items-center gap-3">
+        <button onClick={onCancel} className="p-1.5 -ml-1.5 text-slate-500 hover:text-brand hover:bg-brand/5 rounded-md">
+          <ArrowLeft size={18} />
+        </button>
+        <h2 className="text-lg font-semibold">{initial ? 'App bearbeiten' : 'Neue App'}</h2>
+      </div>
+
+      <div className="px-5 py-5 flex flex-col gap-5">
+        <div className="flex items-center gap-4">
+          <div className="flex-shrink-0 shadow-card rounded-[18px]">
+            <Glyph icon={icon} color={color} box={64} radius={18} glyph={30} />
+          </div>
+          <div className="flex-1 flex flex-col gap-2">
+            <input className="input-base" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+            <input className="input-base" placeholder="https://..." value={url} onChange={(e) => setUrl(e.target.value)} />
+          </div>
+        </div>
+
+        <div>
+          <p className="text-[11px] font-bold text-text-muted tracking-wide uppercase mb-2">Farbe</p>
+          <div className="flex flex-wrap gap-2">
+            {COLORS.map((c) => (
+              <button key={c} type="button" onClick={() => setColor(c)}
+                      className={`w-7 h-7 rounded-full transition-transform hover:scale-110 ${color === c ? 'ring-2 ring-offset-2 ring-brand' : ''}`}
+                      style={{ backgroundColor: c }} />
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-[11px] font-bold text-text-muted tracking-wide uppercase">Icon</p>
+            <span className="text-[11px] text-text-light">{q ? `${matches.length} Treffer` : 'Auswahl'}</span>
+          </div>
+          <input className="input-base mb-2" placeholder="Icon suchen (z.B. mail, chart, essen)..."
+                 value={iconQuery} onChange={(e) => setIconQuery(e.target.value)} />
+          <div className="grid grid-cols-8 gap-1.5 max-h-40 overflow-y-auto">
+            {shown.map((n) => (
+              <button key={n} type="button" onClick={() => setIcon(n)} title={n}
+                      className={`flex items-center justify-center aspect-square rounded-md transition-colors ${
+                        icon === n ? 'bg-brand text-white' : 'text-slate-500 hover:bg-slate-100'}`}>
+                <Icon name={n} size={18} />
+              </button>
+            ))}
+          </div>
+          {q && matches.length === 0 && (
+            <p className="text-[11px] text-text-light mt-2">Nichts gefunden — versuch's englisch (mail, chart, cart).</p>
+          )}
+        </div>
+
+        {users.length > 0 && (
+          <div>
+            <p className="text-[11px] font-bold text-text-muted tracking-wide uppercase mb-1">Verfuegbar fuer</p>
+            <p className="text-[11px] text-text-light mb-2">Wer diese App selbst hinzufuegen darf.</p>
+            <div className="flex flex-col gap-1.5">
+              {users.map((u) => (
+                <label key={u.id} className="flex items-center gap-2.5 px-3 py-2 rounded-md border border-border hover:bg-slate-50 cursor-pointer text-sm">
+                  <input type="checkbox" checked={shareWith.includes(u.id)} onChange={() => toggleShare(u.id)}
+                         className="h-[18px] w-[18px] rounded-[4px] accent-sky-500 cursor-pointer" />
+                  {u.name} <span className="text-text-light text-xs">{u.email}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="px-5 py-4 border-t border-border flex items-center justify-between gap-2">
+        {initial
+          ? <button onClick={() => onDelete(initial.toolId)}
+                    className="px-2.5 py-1.5 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded-md flex items-center gap-1.5">
+              <Trash2 size={14} /> Loeschen
+            </button>
+          : <span />}
+        <div className="flex gap-2">
+          <button onClick={onCancel}
+                  className="px-5 py-2.5 text-sm font-semibold text-slate-700 bg-white border border-slate-300 rounded-[6px] hover:bg-slate-50 transition-colors">
+            Abbrechen
+          </button>
+          <button onClick={() => canSave && onSave({ toolId: initial?.toolId, tool: { name: name.trim(), url: url.trim(), color, icon, shareWith } })}
+                  disabled={!canSave}
+                  className="px-5 py-2.5 text-sm font-semibold text-white bg-brand hover:bg-brand-hover disabled:bg-brand/50 disabled:cursor-not-allowed rounded-[6px] transition-colors">
+            Speichern
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Mitarbeiter: anlegen, loeschen, App-Zugriffe verwalten.
+function StaffAdmin({ meId }) {
+  const [users, setUsers] = useState(null)
+  const [tools, setTools] = useState([])
+  const [editing, setEditing] = useState(null) // null | user
+  const [email, setEmail] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  const reload = useCallback(async () => {
+    const [us, all] = await Promise.all([api.users(), api.allTools()])
+    setUsers(us); setTools(all)
+  }, [])
+  useEffect(() => { reload() }, [reload])
+
+  const add = async () => {
+    const e = email.trim()
+    if (!e) return
+    setBusy(true)
+    const r = await api.createUser(e)
+    setBusy(false)
+    if (r.ok) { setEmail(''); reload() } else alert('Email nicht erlaubt (nur @taikonauten.com).')
+  }
+  const remove = async (id) => { await api.deleteUser(id); reload() }
+
+  if (editing) return <StaffAccess user={editing} tools={tools} onBack={() => { setEditing(null); reload() }} />
+
+  return (
+    <div>
+      <div className="mb-4">
+        <h2 className="text-xl font-bold tracking-tight">Mitarbeiter</h2>
+        <p className="text-sm text-text-muted">Wer Zugriff bekommt und welche Apps sie hinzufuegen duerfen.</p>
+      </div>
+
+      <div className="bg-surface rounded-[10px] shadow-card border border-border p-3 flex items-center gap-2 mb-4">
+        <input className="input-base flex-1" placeholder="email@taikonauten.com" value={email}
+               onChange={(e) => setEmail(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} />
+        <button onClick={add} disabled={busy || !email.trim()}
+                className="inline-flex items-center gap-2 bg-brand text-white px-4 py-2 rounded-[6px] text-sm font-semibold hover:bg-brand-hover disabled:bg-brand/50 transition-colors">
+          <UserPlus size={16} /> Hinzufuegen
+        </button>
+      </div>
+
+      <div className="bg-surface rounded-[10px] shadow-card border border-border p-2 flex flex-col gap-1">
+        {users === null && <div className="flex items-center justify-center py-8 text-text-light"><Loader2 className="animate-spin" /></div>}
+        {users?.map((u) => (
+          <div key={u.id} className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-slate-50">
+            <div className="flex items-center justify-center w-9 h-9 rounded-full bg-slate-100 text-slate-500 flex-shrink-0">
+              <Users size={16} />
+            </div>
+            <button onClick={() => setEditing(u)} className="flex-1 min-w-0 text-left">
+              <span className="block text-sm font-medium truncate">{u.name}{u.id === meId && ' (du)'}</span>
+              <span className="block text-[11px] text-text-light truncate">{u.email}</span>
+            </button>
+            <button onClick={() => setEditing(u)}
+                    className="px-3 py-1.5 text-xs font-semibold text-brand bg-brand/5 hover:bg-brand/10 rounded-md">
+              Zugriffe
+            </button>
+            {u.id !== meId && (
+              <button onClick={() => remove(u.id)} title="Entfernen"
+                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors">
+                <Trash2 size={15} />
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// Zugriffe eines Mitarbeiters: welche Apps darf er selbst hinzufuegen.
+function StaffAccess({ user, tools, onBack }) {
+  const [sel, setSel] = useState(null)
+  useEffect(() => { api.userAccess(user.id).then((ids) => setSel(ids.map(String))) }, [user.id])
+  const toggle = (id) => setSel((s) => s.includes(id) ? s.filter((x) => x !== id) : [...s, id])
+  const save = async () => { await api.setUserAccess(user.id, sel); onBack() }
+
+  return (
+    <div className="bg-surface rounded-[10px] shadow-card border border-border overflow-hidden">
+      <div className="px-5 py-4 border-b border-border flex items-center gap-3">
+        <button onClick={onBack} className="p-1.5 -ml-1.5 text-slate-500 hover:text-brand hover:bg-brand/5 rounded-md">
+          <ArrowLeft size={18} />
+        </button>
+        <div>
+          <h2 className="text-lg font-semibold leading-tight">{user.name}</h2>
+          <p className="text-[11px] text-text-light">{user.email}</p>
+        </div>
+      </div>
+      <div className="px-5 py-4">
+        <p className="text-[11px] font-bold text-text-muted tracking-wide uppercase mb-2">Freigegebene Apps</p>
+        {sel === null
+          ? <div className="flex items-center justify-center py-6 text-text-light"><Loader2 className="animate-spin" /></div>
+          : tools.length === 0
+            ? <p className="text-sm text-text-muted py-4">Noch keine Apps angelegt.</p>
+            : (
+              <div className="flex flex-col gap-1.5">
+                {tools.map((t) => (
+                  <label key={t.toolId} className="flex items-center gap-3 px-3 py-2 rounded-md border border-border hover:bg-slate-50 cursor-pointer">
+                    <input type="checkbox" checked={sel.includes(t.toolId)} onChange={() => toggle(t.toolId)}
+                           className="h-[18px] w-[18px] rounded-[4px] accent-sky-500 cursor-pointer" />
+                    <Glyph icon={t.icon} color={t.color} box={32} radius={7} glyph={16} />
+                    <span className="text-sm truncate">{t.name}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+      </div>
+      <div className="px-5 py-4 border-t border-border flex justify-end">
+        <button onClick={save} disabled={sel === null}
+                className="px-5 py-2.5 text-sm font-semibold text-white bg-brand hover:bg-brand-hover disabled:bg-brand/50 rounded-[6px] transition-colors">
+          Speichern
+        </button>
+      </div>
+    </div>
   )
 }
 

@@ -2,6 +2,7 @@
 // Lauf: node test-db.mjs
 import db, {
   upsertUser, getBoard, getAvailable, createTool, updateTool, upsertPlacement, getShareUserIds,
+  getUserToolIds, setUserAccess,
 } from './db.mjs'
 
 const assert = (c, m) => { if (!c) { console.error('FAIL:', m); cleanup(); process.exit(1) } }
@@ -37,6 +38,13 @@ assert(has(getAvailable(bId), tid), 'B: wieder verfuegbar')
 // A entzieht Freigabe -> B sieht es gar nicht mehr
 updateTool(tid, aId, { name: 'T', url: 'https://t.dev', icon: 'Rocket', color: '#111' }, [])
 assert(!has(getAvailable(bId), tid), 'B: nach Entzug nicht mehr verfuegbar')
+
+// Mitarbeiter-Zugriffe pro Nutzer setzen (setUserAccess)
+setUserAccess(bId, [tid])
+assert(getUserToolIds(bId).includes(tid), 'setUserAccess: Zugriff gesetzt')
+assert(has(getAvailable(bId), tid), 'nach setUserAccess wieder verfuegbar')
+setUserAccess(bId, [])
+assert(getUserToolIds(bId).length === 0, 'setUserAccess: Zugriff entzogen')
 
 cleanup()
 console.log('ok')

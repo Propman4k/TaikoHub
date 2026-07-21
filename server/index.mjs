@@ -18,11 +18,12 @@ for (const k of ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'ALLOWED_EMAILS']) 
   if (!process.env[k]) { console.error(`FEHLT ENV: ${k}`); process.exit(1) }
 }
 
-const { authRoutes, requireAuth, requireAdmin } = await import('./auth.mjs')
+const { authRoutes, requireAuth, requireAdmin, isEmailAllowed } = await import('./auth.mjs')
 const dbmod = await import('./db.mjs')
 const {
   SESSION_DB_PATH, getBoard, getAvailable, listAllTools, listUsers, createTool,
   updateTool, deleteTool, getToolOwner, canSeeTool, getShareUserIds, upsertPlacement,
+  getUserByEmail, createUserByEmail, deleteUser, getUserToolIds, setUserAccess,
 } = dbmod
 
 const isProd = process.env.NODE_ENV === 'production'
@@ -63,6 +64,26 @@ const parseTool = (b) => {
 
 // ── API (alles hinter requireAuth) ───────────────────────────────────────────
 app.get('/api/users', requireAuth, (req, res) => res.json(listUsers()))
+
+// Mitarbeiterverwaltung (Admin)
+app.post('/api/users', requireAuth, requireAdmin, (req, res) => {
+  const email = String(req.body?.email || '').trim().toLowerCase()
+  if (!email || !isEmailAllowed(email)) return res.status(400).json({ error: 'email nicht erlaubt' })
+  createUserByEmail(email)
+  res.status(201).json(getUserByEmail(email))
+})
+app.delete('/api/users/:id', requireAuth, requireAdmin, (req, res) => {
+  if (Number(req.params.id) === req.user.id) return res.status(400).json({ error: 'self' })
+  deleteUser.run(Number(req.params.id))
+  res.json({ ok: true })
+})
+app.get('/api/users/:id/access', requireAuth, requireAdmin, (req, res) =>
+  res.json(getUserToolIds(Number(req.params.id))))
+app.put('/api/users/:id/access', requireAuth, requireAdmin, (req, res) => {
+  const ids = Array.isArray(req.body?.toolIds) ? req.body.toolIds.map(String) : []
+  setUserAccess(Number(req.params.id), ids)
+  res.json({ ok: true })
+})
 
 app.get('/api/board', requireAuth, (req, res) => {
   res.json(getBoard(req.user.id).map((it) => ({ ...it, mine: !!it.mine })))

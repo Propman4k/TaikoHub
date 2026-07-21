@@ -58,9 +58,28 @@ const upsertUserStmt = db.prepare(`
 `)
 export const upsertUser = (u) => upsertUserStmt.get(u)
 export const getUserByEmail = (email) =>
-  db.prepare('SELECT id, email, name, picture FROM users WHERE email = ?').get(email)
+  db.prepare('SELECT id, email, name, picture FROM users WHERE email = ?').get(email.toLowerCase())
 export const listUsers = () =>
   db.prepare('SELECT id, email, name FROM users ORDER BY name').all()
+
+// Admin: Mitarbeiter vorab per Email anlegen (Name = Email bis zum ersten Login).
+export const createUserByEmail = (email) =>
+  db.prepare('INSERT OR IGNORE INTO users (email, name) VALUES (?, ?)').run(email.toLowerCase(), email.toLowerCase())
+export const deleteUser = db.prepare('DELETE FROM users WHERE id = ?')
+
+// Zugriffe eines Mitarbeiters (welche Tools sind fuer ihn freigegeben)
+export const getUserToolIds = (userId) =>
+  db.prepare('SELECT tool_id FROM shares WHERE user_id = ?').all(userId).map((r) => r.tool_id)
+
+const delShare = db.prepare('DELETE FROM shares WHERE tool_id=? AND user_id=?')
+const delPlacement = db.prepare('DELETE FROM placements WHERE tool_id=? AND user_id=?')
+const addShare = db.prepare('INSERT OR IGNORE INTO shares (tool_id, user_id) VALUES (?, ?)')
+export const setUserAccess = db.transaction((userId, toolIds) => {
+  const cur = getUserToolIds(userId)
+  const target = new Set(toolIds)
+  for (const tid of cur) if (!target.has(tid)) { delShare.run(tid, userId); delPlacement.run(tid, userId) }
+  for (const tid of target) if (!cur.includes(tid)) addShare.run(tid, userId)
+})
 
 // ── Board (Tools + eigene Placement-Sicht) ────────────────────────────────────
 // Board = Tools, die der Nutzer sehen DARF (Owner/Share) UND aktiv hinzugefuegt hat

@@ -52,13 +52,19 @@ function OpenerSection() {
     const cancel = () => { seen = true }
     window.addEventListener('blur', cancel, { once: true })
     document.addEventListener('visibilitychange', cancel, { once: true })
-    const w = window.open('taikohub://open?name=Finder', '_blank')
+    // Unsichtbarer iframe statt window.open: ein neues Tab wuerde selbst blur
+    // ausloesen und der Test meldete immer faelschlich "Aktiv". blur feuert so
+    // nur, wenn wirklich eine App (der Opener) den Fokus uebernimmt.
+    const f = document.createElement('iframe')
+    f.style.display = 'none'
+    f.src = 'taikohub://open?name=Finder'
+    document.body.appendChild(f)
     setTimeout(() => {
-      try { w && w.close() } catch { /* egal */ }
+      f.remove()
       window.removeEventListener('blur', cancel)
       document.removeEventListener('visibilitychange', cancel)
       setTest(seen ? 'ok' : 'fail')
-    }, 1500)
+    }, 3000) // grosszuegig: erster Aufruf zeigt ggf. den "Oeffnen erlauben?"-Dialog
   }, [])
 
   return (
@@ -99,6 +105,14 @@ function OpenerSection() {
           <li>Auf <span className="font-medium text-text">TaikoHub Opener</span> rechtsklicken &rarr; <span className="font-medium text-text">Oeffnen</span> &rarr; nochmal <span className="font-medium text-text">Oeffnen</span>.</li>
           <li>Hier auf <span className="font-medium text-text">Verbindung testen</span> &mdash; wird's gruen, ist alles bereit.</li>
         </ol>
+        <div className="text-sm text-text-muted bg-amber-50 ring-1 ring-amber-200 rounded-md px-4 py-3 max-w-2xl">
+          Meldet macOS <span className="font-medium text-text">&bdquo;beschaedigt und kann nicht geoeffnet werden&ldquo;</span>:
+          Das ist der Gatekeeper (die App ist nicht signiert). Terminal oeffnen und einmal ausfuehren:
+          <code className="block mt-1.5 font-mono text-[12px] text-text bg-white rounded px-2 py-1.5 select-all">
+            xattr -cr ~/Downloads/TaikoHub\ Opener.app
+          </code>
+          Danach normal per Doppelklick oeffnen.
+        </div>
       </div>
     </section>
   )

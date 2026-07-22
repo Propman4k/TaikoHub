@@ -131,12 +131,14 @@ describe('Settings: Opener', () => {
     fireEvent.click(screen.getByRole('button', { name: /TaikoHub Opener/ }))
     expect(await screen.findByText('Opener herunterladen')).toBeInTheDocument()
     vi.useFakeTimers()
-    const open = vi.spyOn(window, 'open').mockReturnValue(null)
     fireEvent.click(screen.getByRole('button', { name: 'Verbindung testen' }))
-    expect(open).toHaveBeenCalledWith('taikohub://open?name=Finder', '_blank')
-    act(() => vi.advanceTimersByTime(1600))
+    // unsichtbarer iframe traegt die Scheme-URL (kein window.open -> kein Fake-blur)
+    const frame = document.querySelector('iframe')
+    expect(frame?.src).toContain('taikohub://open?name=Finder')
+    act(() => vi.advanceTimersByTime(3100))
     vi.useRealTimers()
     expect(await screen.findByText('Nicht erkannt')).toBeInTheDocument()
+    expect(document.querySelector('iframe')).toBeNull() // aufgeraeumt
   })
   it('Nicht-Admin sieht nur die Opener-Sektion', async () => {
     mockApi([{ m: 'GET', p: '/api/auth/me', body: { ...ME, isAdmin: false } },

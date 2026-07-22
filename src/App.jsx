@@ -48,8 +48,10 @@ export default function App() {
   const openInWindow = (app) => {
     const w = Math.min(1400, screen.availWidth - 80), h = Math.min(900, screen.availHeight - 80)
     const left = screen.availLeft + (screen.availWidth - w) / 2, top = screen.availTop + (screen.availHeight - h) / 2
+    // KEIN noopener/noreferrer im Feature-String: Safari oeffnet damit ein
+    // zusaetzliches leeres Fenster (Bug). Ziele sind interne Taiko-Tools.
     window.open(app.url, `taikohub_${app.toolId}`,
-      `popup=yes,noopener,noreferrer,width=${w},height=${h},left=${left},top=${top}`)
+      `popup=yes,width=${w},height=${h},left=${left},top=${top}`)
   }
 
   // Mit macApp: ueber das taikohub://-Schema die installierte App oeffnen. Das ist

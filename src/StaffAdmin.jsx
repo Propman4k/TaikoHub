@@ -42,7 +42,7 @@ export function StaffAdmin({ meId }) {
           Den Login selbst regelt die Allowlist (@taikonauten.com) — Entfernen loescht nur Freigaben und Board.</p>
       </div>
 
-      <div className="flex items-center gap-2 pb-5 border-b border-border max-w-xl">
+      <div className="bg-surface rounded-[10px] shadow-card border border-border p-3 flex items-center gap-2 mb-4">
         <input className="input-base flex-1" placeholder="email@taikonauten.com" value={email}
                onChange={(e) => setEmail(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} />
         <button onClick={add} disabled={busy || !email.trim()}
@@ -51,10 +51,10 @@ export function StaffAdmin({ meId }) {
         </button>
       </div>
 
-      <div className="divide-y divide-border">
+      <div className="bg-surface rounded-[10px] shadow-card border border-border p-2 flex flex-col gap-1">
         {users === null && <div className="flex items-center justify-center py-8 text-text-light"><Loader2 className="animate-spin" /></div>}
         {users?.map((u) => (
-          <div key={u.id} className="flex items-center gap-3 px-1 py-3 hover:bg-slate-50">
+          <div key={u.id} className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-slate-50">
             <div className="flex items-center justify-center w-9 h-9 rounded-full bg-slate-100 text-slate-500 flex-shrink-0">
               <Users size={16} />
             </div>
@@ -66,12 +66,12 @@ export function StaffAdmin({ meId }) {
                     className="px-3 py-1.5 text-xs font-semibold text-brand bg-brand/5 hover:bg-brand/10 rounded-md">
               Zugriffe
             </button>
-            {u.id !== meId && (
-              <button onClick={() => remove(u)} title="Entfernen"
-                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors">
-                <Trash2 size={15} />
-              </button>
-            )}
+            {/* invisible statt weglassen: haelt die Zugriffe-Badges in einer Flucht */}
+            <button onClick={() => remove(u)} title="Entfernen"
+                    className={`p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors ${
+                      u.id === meId ? 'invisible' : ''}`}>
+              <Trash2 size={15} />
+            </button>
           </div>
         ))}
       </div>
@@ -87,8 +87,8 @@ function StaffAccess({ user, tools, onBack }) {
   const save = async () => { await api.setUserAccess(user.id, sel); onBack() }
 
   return (
-    <div>
-      <div className="flex items-center gap-3 pb-4 border-b border-border">
+    <div className="bg-surface rounded-[10px] shadow-card border border-border overflow-hidden">
+      <div className="px-5 py-4 border-b border-border flex items-center gap-3">
         <button onClick={onBack} className="p-1.5 -ml-1.5 text-slate-500 hover:text-brand hover:bg-brand/5 rounded-md">
           <ArrowLeft size={18} />
         </button>
@@ -97,7 +97,7 @@ function StaffAccess({ user, tools, onBack }) {
           <p className="text-[11px] text-text-light">{user.email}</p>
         </div>
       </div>
-      <div className="py-6 border-b border-border">
+      <div className="px-5 py-4">
         <p className="text-[11px] font-bold text-text-muted tracking-wide uppercase mb-2">Freigegebene Apps</p>
         {sel === null
           ? <div className="flex items-center justify-center py-6 text-text-light"><Loader2 className="animate-spin" /></div>
@@ -116,7 +116,7 @@ function StaffAccess({ user, tools, onBack }) {
               </div>
             )}
       </div>
-      <div className="py-5 flex justify-end">
+      <div className="px-5 py-4 border-t border-border flex justify-end">
         <button onClick={save} disabled={sel === null}
                 className="px-5 py-2.5 text-sm font-semibold text-white bg-brand hover:bg-brand-hover disabled:bg-brand/50 rounded-[6px] transition-colors">
           Speichern

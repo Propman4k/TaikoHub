@@ -197,7 +197,7 @@ describe('Settings: Mitarbeiter', () => {
     mockApi([...BASE.filter((r) => !(r.m === 'DELETE' && r.p === '/api/users')),
              { m: 'DELETE', p: '/api/users', status: 400, body: { error: 'owns tools' } }])
     await openStaff()
-    fireEvent.click(screen.getByTitle('Entfernen'))
+    fireEvent.click(screen.getAllByTitle('Entfernen')[1]) // [0] = eigene Zeile (invisible)
     await waitFor(() => expect(called('DELETE', '/api/users/2')).toBe(true))
     await waitFor(() => expect(window.alert).toHaveBeenCalledWith(expect.stringContaining('Nicht entfernbar')))
   })

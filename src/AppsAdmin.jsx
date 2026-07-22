@@ -41,12 +41,13 @@ export function AppsAdmin({ meId }) {
           <Plus size={16} strokeWidth={2.5} /> Neu
         </button>
       </div>
-      <div className="border-t border-border divide-y divide-border">
+      <div className="flex flex-col gap-2">
         {tools === null && <div className="flex items-center justify-center py-8 text-text-light"><Loader2 className="animate-spin" /></div>}
         {tools?.length === 0 && <p className="text-sm text-text-muted py-6 text-center">Noch keine Apps. Lege mit „Neu" die erste an.</p>}
         {tools?.map((t) => (
           <button key={t.toolId} onClick={() => setEditing(t)}
-                  className="w-full flex items-center gap-3 px-1 py-3 hover:bg-slate-50 text-left transition-colors">
+                  className="bg-surface rounded-[10px] shadow-card border border-border flex items-center gap-3 px-4 py-3
+                             hover:bg-slate-50 text-left transition-colors">
             <Glyph icon={t.icon} color={t.color} box={40} radius={9} glyph={20} />
             <span className="flex-1 min-w-0">
               <span className="block text-sm font-medium truncate">{t.name}</span>
